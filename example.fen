@@ -4,7 +4,7 @@ extern (mul x y)
 
 extern (printint x)
 
-global (fibonacci n; a b c) {
+public (fibonacci n; a b c) {
 	let a = -1
 	let b = 1
 	(printint a)
@@ -19,7 +19,7 @@ global (fibonacci n; a b c) {
 	return 0
 }
 
-global (factorial n; x) {
+public (factorial n; x) {
 	let x = 1
 	while n > 0 {
 		let x = (mul x n)
