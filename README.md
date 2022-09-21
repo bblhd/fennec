@@ -1,2 +1,2 @@
 # fennec
-Minimalist compiled programming language
+Minimalist compiled programming language (WIP)
