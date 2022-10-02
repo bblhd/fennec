@@ -2,14 +2,17 @@ extern (add x y)
 extern (sub x y)
 extern (mul x y)
 
-extern (printint x)
+extern (sgt x y) //signed greater than
+extern (sge x y) //signed greater than or equal
+
+extern (printint x) //prints integer
 
 public (fibonacci n; a b c) {
-	let a = -1
+	let a = (sub 0 1)
 	let b = 1
 	(printint a)
 	(printint b)
-	while n >= 0 {
+	while (sge n 0) {
 		let c = (add a b)
 		(printint c)
 		let a = b
@@ -21,7 +24,7 @@ public (fibonacci n; a b c) {
 
 public (factorial n; x) {
 	let x = 1
-	while n > 0 {
+	while (sgt n 0) {
 		let x = (mul x n)
 		let n = (sub n 1)
 	}

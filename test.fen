@@ -35,5 +35,5 @@ public (fibonacci n; a b c) {
 		let b = c
 		let n = (sub n 1)
 	}
-	return
+	return 0
 }
