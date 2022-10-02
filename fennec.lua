@@ -118,10 +118,8 @@ function as_functionHeader(keyword)
 			print("global " .. currentFunction.name)
 		end
 		print(currentFunction.name..":")
-		if #currentFunction.args > 0 or #currentFunction.vars > 0 then
-			print("push edi")
-			print("mov edi, esp")
-		end
+		print("push ebp")
+		print("mov ebp, esp")
 		if #currentFunction.vars > 0 then
 			print("sub esp, "..4*#currentFunction.vars)
 		end
@@ -130,9 +128,8 @@ end
 
 function as_return()
 	if currentFunction then
-		if #currentFunction.args > 0 or #currentFunction.vars > 0 then
-			print("mov edi, [edi]")
-		end
+		print("mov esp, ebp")
+		print("pop ebp")
 		print("ret")
 	end
 end
@@ -140,27 +137,15 @@ end
 function getTargetOfVariable(name)
 	for k,v in ipairs(currentFunction.args) do
 		if v == name then
-			return "[edi+"..tostring(4 * (k+1)).."]"
+			return "[ebp+"..tostring(4 * (k+1)).."]"
 		end
 	end
 	for k,v in ipairs(currentFunction.vars) do
 		if v == name then
-			return "[edi-"..tostring(4*k).."]"
+			return "[ebp-"..tostring(4*k).."]"
 		end
 	end
 	error("compiler error: undeclared variable '"..name.."'")
-end
-
-function getTargetOfFunctionCallArgument(functionName, n)
-	local varoff = functionArgCounts[functionName] - n
-	if compileExpression(nextToken(), nextToken, true) and varoff > 0 then
-		return "[esp+"..tostring(4*varoff).."]"
-	end
-	if varoff < 0 then
-		error("compiler error: too many arguments for "..functionName)
-	end
-	if varoff > 0 then
-	end
 end
 
 function compileExpression(token, nextToken, fixStack)
@@ -169,17 +154,17 @@ function compileExpression(token, nextToken, fixStack)
 		token = nextToken()
 	end
 	if token == "(" then
-		if fixStack then
-			print("mov esp, ebp")
-			print("pop ebp")
-		end
 		local functionName = getCanonicalName(nextToken())
+		print("sub esp, "..functionArgCounts[functionName]*4)
 		for i=functionArgCounts[functionName]-1,0,-1 do
 			if not compileExpression(nextToken(), nextToken, true) then
 				error("compiler error: not enough many arguments for "..functionName)
 			end
-			
-			print("mov [esp+"..tostring(4*i).."], eax")
+			if i > 0 then
+				print("mov [esp+"..tostring(4*i).."], eax")
+			else
+				print("mov [esp], eax")
+			end
 		end
 		if nextToken() ~= ")" then
 			error("compiler error: function call for "..functionName.." is missing closing bracket.")
@@ -190,10 +175,6 @@ function compileExpression(token, nextToken, fixStack)
 			local action = readStatement(nextToken)
 		until not action
 	elseif token == ")" then
-		if fixStack then
-			print("mov esp, ebp")
-			print("pop ebp")
-		end
 		return nil
 	elseif token == "}" then
 		if fixStack then
