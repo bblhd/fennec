@@ -37,29 +37,21 @@ public (fibonacci n; a b c) {
 
 namespace none
 
-private (add x y) ASM "
+private (add x y) return {ASM "
 	mov eax, [edi+8]
 	add eax, [edi+12]
-	mov edi, [edi]
-	ret
-"
-private (sub x y) ASM "
+"}
+private (sub x y) return {ASM "
 	mov eax, [edi+8]
 	sub eax, [edi+12]
-	mov edi, [edi]
-	ret
-"
-private (mul x y) ASM " 
+"}
+private (mul x y) return {ASM " 
 	mov eax, [edi+8]
 	mul DWORD [edi+12]
-	mov edi, [edi]
-	ret
-"
+"}
 
-private (slt x y) ASM "
+private (slt x y) return {ASM "
 	mov eax, [edi+8]
 	sub eax, [edi+12]
 	shr eax, 31
-	mov edi, [edi]
-	ret
-"
+"}
