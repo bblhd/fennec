@@ -171,16 +171,20 @@ function compileExpression(token, nextToken, fixStack)
 		end
 		print("call "..functionName)
 	elseif token == "{" then
+		if fixStack then
+			print("push ebp")
+			print("mov ebp, esp")
+		end
 		repeat
 			local action = readStatement(nextToken)
 		until not action
+		if fixStack then
+			print("mov esp, ebp")
+			print("pop ebp")
+		end
 	elseif token == ")" then
 		return nil
 	elseif token == "}" then
-		if fixStack then
-			print("mov esp, ebp")
-			print(tab.."pop ebp")
-		end
 		return nil
 	elseif token:match('^%a') then
 		print("mov eax, "..getTargetOfVariable(token))
