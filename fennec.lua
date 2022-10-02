@@ -43,7 +43,7 @@ function tokenise(str)
 		if str:match('^"') then
 			local i = 2
 			while str:sub(i,i) ~= '"' and i <= #str do
-				if str:sub(i,i) ~= '\\' then
+				if str:sub(i,i) == '\\' then
 					i = i + 1
 				end
 				i = i + 1
@@ -51,19 +51,13 @@ function tokenise(str)
 			if i > #str then
 				error("compiler error: no end of string")
 			end
-			token = str:sub(2,i-1)
+			token = str:sub(1,i)
 			str = str:sub(i+1)
 		elseif str:match('^%d') then
 			if str:match('^0%D') then
 				token, str = str:match("^(0)(.*)$")
 			else
-				if str:match('^0x') then
-					token, str = str:match("^(0x[1-9]%d*)(.*)$")
-				elseif str:match('^0b') then
-					token, str = str:match("^(0b[1-9]%d*)(.*)$")
-				else
-					token, str = str:match("^([1-9]%d*)(.*)$")
-				end
+				token, str = str:match("^([1-9]%d*)(.*)$")
 			end
 		elseif str:match('^%a') then
 			token, str = str:match('^(%a[%w%._]*)(.*)$')
@@ -86,6 +80,8 @@ currentNamespace = ""
 currentFunction = nil
 functionArgCounts = {}
 constraints = {}
+jumpnum = 0
+
 
 function makeNamespacedName(namespaced)
 	local namespace, name = namespaced:match('^([^%._]+)%.(.*)$')
@@ -127,7 +123,7 @@ function as_functionHeader(keyword)
 			print("mov edi, esp")
 		end
 		if #currentFunction.vars > 0 then
-			print("add esp, "..4*#currentFunction.vars)
+			print("sub esp, "..4*#currentFunction.vars)
 		end
 	end
 end
@@ -141,30 +137,30 @@ function as_return()
 	end
 end
 
-function offstr(varoff)
-	if varoff < 0 then
-		return tostring(varoff)
-	elseif varoff == 0 then
-		return ""
-	else
-		return "+"..tostring(varoff)
-	end
-end
-
-function getVaroff(name)
+function getTargetOfVariable(name)
 	for k,v in ipairs(currentFunction.args) do
 		if v == name then
-			return k + 1
+			return "[edi+"..tostring(4 * (k+1)).."]"
 		end
 	end
-	if varoff == nil then
-		for k,v in ipairs(currentFunction.vars) do
-			if v == name then
-				return -k
-			end
+	for k,v in ipairs(currentFunction.vars) do
+		if v == name then
+			return "[edi-"..tostring(4*k).."]"
 		end
 	end
 	error("compiler error: undeclared variable '"..name.."'")
+end
+
+function getTargetOfFunctionCallArgument(functionName, n)
+	local varoff = functionArgCounts[functionName] - n
+	if compileExpression(nextToken(), nextToken, true) and varoff > 0 then
+		return "[esp+"..tostring(4*varoff).."]"
+	end
+	if varoff < 0 then
+		error("compiler error: too many arguments for "..functionName)
+	end
+	if varoff > 0 then
+	end
 end
 
 function compileExpression(token, nextToken, fixStack)
@@ -178,19 +174,15 @@ function compileExpression(token, nextToken, fixStack)
 			print("pop ebp")
 		end
 		local functionName = getCanonicalName(nextToken())
-		local varoff = functionArgCounts[functionName] - 0
-		while true do
-			if compileExpression(nextToken(), nextToken, true) then
-				varoff = varoff - 1
-				if varoff < 0 then
-					error("compiler error: too many arguments for "..functionName)
-				end
-				print("mov [esp"..offstr(4*varoff).."], eax")
-			elseif varoff > 0 then
+		for i=functionArgCounts[functionName]-1,0,-1 do
+			if not compileExpression(nextToken(), nextToken, true) then
 				error("compiler error: not enough many arguments for "..functionName)
-			else
-				break
 			end
+			
+			print("mov [esp+"..tostring(4*i).."], eax")
+		end
+		if nextToken() ~= ")" then
+			error("compiler error: function call for "..functionName.." is missing closing bracket.")
 		end
 		print("call "..functionName)
 	elseif token == "{" then
@@ -210,7 +202,7 @@ function compileExpression(token, nextToken, fixStack)
 		end
 		return nil
 	elseif token:match('^%a') then
-		print("mov eax, [edi"..offstr(4*getVaroff(token)).."]")
+		print("mov eax, "..getTargetOfVariable(token))
 	elseif token:match('^%d') then
 		print("mov eax, "..token)
 	else
@@ -227,6 +219,7 @@ function declareFunction(nextToken)
 			args = {},
 			vars = {},
 		}
+		jumpnum = 0
 		currentFunction.name = makeNamespacedName(nextToken())
 		
 		local section = 1
@@ -249,8 +242,6 @@ function declareFunction(nextToken)
 	end
 end
 
-jumpnum = 0
-
 function readStatement(keyword, nextToken)
 	if not nextToken then
 		nextToken = keyword
@@ -260,12 +251,12 @@ function readStatement(keyword, nextToken)
 		compileExpression(nextToken)
 		as_return()
 	elseif keyword == "let" then
-		local dest = getVaroff(nextToken())
+		local dest = getTargetOfVariable(nextToken())
 		if nextToken() ~= "=" then
 			error("compiler error: let is missing equals sign")
 		end
 		compileExpression(nextToken)
-		print("mov [edi"..offstr(4*dest).."], eax")
+		print("mov "..dest..", eax")
 	elseif keyword == "if" then
 		local jumpLabel = ".j"..jumpnum
 		jumpnum = jumpnum + 1
@@ -288,6 +279,15 @@ function readStatement(keyword, nextToken)
 		readStatement(nextToken)
 		print("jmp "..jumpLabelS)
 		print(jumpLabelE..":")
+	elseif keyword == "ASM" then
+		body = nextToken()
+		if body:match('^"') then
+			body = body:sub(2,#body-1)
+		end
+		body = body:gsub('\n%s*', '\n')
+		body = body:gsub('^%s*', '')
+		body = body:gsub('%s*$', '')
+		print(body)
 	elseif keyword == "{" then
 		repeat
 			local action = readStatement(nextToken)
@@ -312,6 +312,9 @@ function readDeclaration(keyword, nextToken)
 		as_functionHeader(keyword)
 	elseif keyword == "namespace" then
 		currentNamespace = nextToken()
+		if currentNamespace == "none" then
+			currentNamespace = ""
+		end
 	else
 		return readStatement(keyword, nextToken)
 	end
@@ -324,8 +327,7 @@ function compile(nextToken)
 	local declarations = {}
 	repeat
 		local action = readDeclaration(nextToken)
-	until not action           
-	as_return()
+	until not action
 	return declarations
 end
 

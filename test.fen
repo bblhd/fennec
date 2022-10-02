@@ -1,0 +1,65 @@
+intern (add x y)
+intern (sub x y)
+intern (mul x y)
+
+intern (slt x y) //signed less than
+
+namespace example
+
+private (I x) return x
+
+public (factorial_recur n) {
+	if (slt 0 n) return (mul n (factorial_recur (sub n 1)))
+	return 1
+}
+
+public (factorial_iter n; x) {
+	let x = 1
+	while (slt 0 n) {
+		let x = (mul x n)
+		let n = (sub n 1)
+	}
+	return x
+}
+
+public (fibonacci n; a b c) {
+	let a = 0
+	let b = 1
+	while (slt 0 n) {
+		let c = (add a b)
+		let a = b
+		let b = c
+		let n = (sub n 1)
+	}
+	return 0
+}
+
+
+namespace none
+
+private (add x y) ASM "
+	mov eax, [edi+8]
+	add eax, [edi+12]
+	mov edi, [edi]
+	ret
+"
+private (sub x y) ASM "
+	mov eax, [edi+8]
+	sub eax, [edi+12]
+	mov edi, [edi]
+	ret
+"
+private (mul x y) ASM " 
+	mov eax, [edi+8]
+	mul DWORD [edi+12]
+	mov edi, [edi]
+	ret
+"
+
+private (slt x y) ASM "
+	mov eax, [edi+8]
+	sub eax, [edi+12]
+	shr eax, 31
+	mov edi, [edi]
+	ret
+"
