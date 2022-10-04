@@ -59,8 +59,8 @@ function tokenise(str)
 			else
 				token, str = str:match("^([1-9]%d*)(.*)$")
 			end
-		elseif str:match('^%a') then
-			token, str = str:match('^(%a[%w%._]*)(.*)$')
+		elseif str:match('^[%a_]') then
+			token, str = str:match('^([%a_][%w%._]*)(.*)$')
 		elseif str:match('^%p') then
 			if str:match('^[%(%)%[%]{},]') then
 				token, str = str:match("^(.)(.*)$")
@@ -82,6 +82,7 @@ functionArgCounts = {}
 constraints = {}
 jumpnum = 0
 
+local isa = require "x86"
 
 function makeNamespacedName(namespaced)
 	local namespace, name = namespaced:match('^([^%._]+)%.(.*)$')
@@ -107,30 +108,33 @@ function getCanonicalName(name)
 	return name
 end
 
-function as_functionHeader(keyword)
-	if keyword == "extern" then
-		print("")
-		print("extern " .. currentFunction.name)
-		currentFunction = nil
-	elseif keyword == "public" or keyword == "private" then
-		print("")
-		if keyword == "public" then
-			print("global " .. currentFunction.name)
+function getFunctionHeader(nextToken)
+	if nextToken() == "(" then
+		currentFunction = {
+			name = "",
+			args = {},
+			vars = {},
+		}
+		jumpnum = 0
+		currentFunction.name = makeNamespacedName(nextToken())
+		
+		local section = 1
+		local token = nextToken()
+		while token ~= ")" do
+			if section == 1 and token == ";" then 
+				section = 2
+			elseif not token:match("^[%a_][%w%._]*$") then
+				error("compiler error: function arguments malformed")
+			elseif section == 1 then
+				table.insert(currentFunction.args, token)
+			elseif section == 2 then
+				table.insert(currentFunction.vars, token)
+			end
+			token = nextToken()
 		end
-		print(currentFunction.name..":")
-		print("push ebp")
-		print("mov ebp, esp")
-		if #currentFunction.vars > 0 then
-			print("sub esp, "..4*#currentFunction.vars)
-		end
-	end
-end
-
-function as_return()
-	if currentFunction then
-		print("mov esp, ebp")
-		print("pop ebp")
-		print("ret")
+		functionArgCounts[currentFunction.name] = #currentFunction.args
+	else
+		error("compiler error: function declaration malformed")
 	end
 end
 
@@ -148,48 +152,52 @@ function getTargetOfVariable(name)
 	error("compiler error: undeclared variable '"..name.."'")
 end
 
+function getJumpID()
+	jumpnum = jumpnum + 1
+	return jumpnum
+end
+
+function requireToken(what, nextToken, errorMessage)
+	if nextToken() ~= what then
+		error("compiler error: "..errorMessage)
+	end
+end
+
 function compileExpression(token, nextToken, fixStack)
 	if not nextToken then
 		nextToken = token
 		token = nextToken()
 	end
+	
 	if token == "(" then
 		local functionName = getCanonicalName(nextToken())
-		print("sub esp, "..functionArgCounts[functionName]*4)
-		for i=functionArgCounts[functionName]-1,0,-1 do
-			if not compileExpression(nextToken(), nextToken, true) then
-				error("compiler error: not enough many arguments for "..functionName)
-			end
-			if i > 0 then
-				print("mov [esp+"..tostring(4*i).."], eax")
-			else
-				print("mov [esp], eax")
-			end
+		
+		isa.functionCall_init(functionName)
+		for i = 1,functionArgCounts[functionName] do
+			compileExpression(nextToken(), nextToken, true)
+			isa.functionCall_pass(functionName, i)
 		end
-		if nextToken() ~= ")" then
-			error("compiler error: function call for "..functionName.." is missing closing bracket.")
-		end
-		print("call "..functionName)
+		isa.functionCall_fini(functionName)
+		
+		requireToken(")", nextToken, "function call for "..functionName.." is missing closing bracket.")
 	elseif token == "{" then
-		if fixStack then
-			print("push ebp")
-			print("mov ebp, esp")
+		local statement = nextToken()
+		while statement ~= "}" do
+			compileStatement(statement, nextToken)
+			statement = nextToken()
 		end
-		repeat
-			local action = readStatement(nextToken)
-		until not action
-		if fixStack then
-			print("mov esp, ebp")
-			print("pop ebp")
+	elseif token == "^" then
+		local name = nextToken()
+		local canon = getCanonicalName(name)
+		if functionArgCounts[canon] then
+			isa.functionPointer(canon)
+		else
+			isa.variablePointer(name)
 		end
-	elseif token == ")" then
-		return nil
-	elseif token == "}" then
-		return nil
-	elseif token:match('^%a') then
-		print("mov eax, "..getTargetOfVariable(token))
+	elseif token:match('^[%a_]') then
+		isa.load(token)
 	elseif token:match('^%d') then
-		print("mov eax, "..token)
+		isa.numlit(tonumber(token))
 	else
 		error("compiler error: expression malformed")
 		return nil
@@ -197,88 +205,50 @@ function compileExpression(token, nextToken, fixStack)
 	return true
 end
 
-function declareFunction(nextToken)
-	if nextToken() == "(" then
-		currentFunction = {
-			name = "",
-			args = {},
-			vars = {},
-		}
-		jumpnum = 0
-		currentFunction.name = makeNamespacedName(nextToken())
-		
-		local section = 1
-		local token = nextToken()
-		while token ~= ")" do
-			if section == 1 and token == ";" then 
-				section = 2
-			elseif not token:match("^%a[%w%._]*$") then
-				error("compiler error: function arguments malformed")
-			elseif section == 1 then
-				table.insert(currentFunction.args, token)
-			elseif section == 2 then
-				table.insert(currentFunction.vars, token)
-			end
-			token = nextToken()
-		end
-		functionArgCounts[currentFunction.name] = #currentFunction.args
-	else
-		error("compiler error: function declaration malformed")
-	end
-end
-
-function readStatement(keyword, nextToken)
+function compileStatement(keyword, nextToken)
 	if not nextToken then
 		nextToken = keyword
 		keyword = nextToken()
 	end
+	
 	if keyword == "return" then
 		compileExpression(nextToken)
-		as_return()
+		isa.ret()
 	elseif keyword == "let" then
-		local dest = getTargetOfVariable(nextToken())
-		if nextToken() ~= "=" then
-			error("compiler error: let is missing equals sign")
-		end
+		local var = nextToken()
+		requireToken("=", nextToken, "let is missing equals sign")
 		compileExpression(nextToken)
-		print("mov "..dest..", eax")
+		isa.store(var)
 	elseif keyword == "if" then
-		local jumpLabel = ".j"..jumpnum
-		jumpnum = jumpnum + 1
+		local jumpId = getJumpID()
 		
 		compileExpression(nextToken)
-		print("cmp eax, 0")
-		print("jne "..jumpLabel)
-		readStatement(nextToken)
-		print(jumpLabel..":")
+		isa.ifthen(jumpId)
+		compileStatement(nextToken)
+		isa.fi(jumpId)
 	elseif keyword == "while" then
-		local jumpLabelS = ".j"..jumpnum
-		jumpnum = jumpnum + 1
-		local jumpLabelE = ".j"..jumpnum
-		jumpnum = jumpnum + 1
+		local jumpIdS = getJumpID()
+		local jumpIdE = getJumpID()
 		
-		print(jumpLabelS..":")
 		compileExpression(nextToken)
-		print("cmp eax, 0")
-		print("jne "..jumpLabelE)
-		readStatement(nextToken)
-		print("jmp "..jumpLabelS)
-		print(jumpLabelE..":")
+		isa.label(jumpIdS)
+		isa.ifthen(jumpIdE)
+		compileStatement(nextToken)
+		isa.branch(jumpIdS)
+		isa.fi(jumpIdE)
 	elseif keyword == "ASM" then
 		body = nextToken()
 		if body:match('^"') then
 			body = body:sub(2,#body-1)
 		end
-		body = body:gsub('\n%s*', '\n')
-		body = body:gsub('^%s*', '')
-		body = body:gsub('%s*$', '')
+		body = body:gsub('\n%s*', '\n'):gsub('^%s*', ''):gsub('%s*$', '')
 		print(body)
 	elseif keyword == "{" then
-		repeat
-			local action = readStatement(nextToken)
-		until not action
-	elseif keyword == "}" then
-		return nil
+		local statement = nextToken()
+		while statement ~= "}" do
+			compileStatement(statement, nextToken)
+			statement = nextToken()
+		end
 	elseif keyword then
 		return compileExpression(keyword, nextToken)
 	end
@@ -287,33 +257,29 @@ function readStatement(keyword, nextToken)
 	end
 end
 
-function readDeclaration(keyword, nextToken)
+function compileDeclaration(keyword, nextToken)
 	if not nextToken then
 		nextToken = keyword
 		keyword = nextToken()
 	end
+	
 	if keyword == "extern" or keyword == "intern" or keyword == "public" or keyword == "private" then
-		declareFunction(nextToken)
-		as_functionHeader(keyword)
+		getFunctionHeader(nextToken)
+		if isa.functionHeader(keyword) then
+			compileStatement(nextToken)
+		end
+		return true
 	elseif keyword == "namespace" then
 		currentNamespace = nextToken()
 		if currentNamespace == "none" then
 			currentNamespace = ""
 		end
-	else
-		return readStatement(keyword, nextToken)
-	end
-	if keyword then
 		return true
 	end
 end
 
 function compile(nextToken)
-	local declarations = {}
-	repeat
-		local action = readDeclaration(nextToken)
-	until not action
-	return declarations
+	while compileDeclaration(nextToken) do end
 end
 
 local file = io.open(arg[1], 'r')
