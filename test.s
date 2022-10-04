@@ -1,7 +1,7 @@
 
 _start:
 push ebp
-mov ebp, rsp
+mov ebp, esp
 mov eax, 0
 mov esp, ebp
 pop ebp
@@ -9,16 +9,16 @@ ret
 
 example.I:
 push ebp
-mov ebp, rsp
+mov ebp, esp
 mov eax, [ebp+8]
 mov esp, ebp
 pop ebp
 ret
 
-.globl example.factorial_recur
+global example.factorial_recur
 example.factorial_recur:
 push ebp
-mov ebp, rsp
+mov ebp, esp
 sub esp, 8
 mov eax, 0
 mov [esp], eax
@@ -54,11 +54,11 @@ mov esp, ebp
 pop ebp
 ret
 
-.globl example.factorial_iter
+global example.factorial_iter
 example.factorial_iter:
 push ebp
-mov ebp, rsp
-sub rsp, rsp, 4
+mov ebp, esp
+sub esp, 4
 mov eax, 1
 mov [ebp-4], eax
 sub esp, 8
@@ -94,11 +94,11 @@ mov esp, ebp
 pop ebp
 ret
 
-.globl example.fibonacci
+global example.fibonacci
 example.fibonacci:
 push ebp
-mov ebp, rsp
-sub rsp, rsp, 12
+mov ebp, esp
+sub esp, 12
 mov eax, 0
 mov [ebp-4], eax
 mov eax, 1
@@ -142,7 +142,7 @@ ret
 
 add:
 push ebp
-mov ebp, rsp
+mov ebp, esp
 mov eax, [ebp+8]
 add eax, [ebp+12]
 mov esp, ebp
@@ -151,5 +151,28 @@ ret
 
 sub:
 push ebp
-mov ebp, rsp
-x86
+mov ebp, esp
+mov eax, [ebp+8]
+sub eax, [ebp+12]
+mov esp, ebp
+pop ebp
+ret
+
+mul:
+push ebp
+mov ebp, esp
+mov eax, [ebp+8]
+mul DWORD [ebp+12]
+mov esp, ebp
+pop ebp
+ret
+
+slt:
+push ebp
+mov ebp, esp
+mov eax, [ebp+8]
+sub eax, [ebp+12]
+shr eax, 31
+mov esp, ebp
+pop ebp
+ret
