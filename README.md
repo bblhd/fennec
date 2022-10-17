@@ -3,7 +3,7 @@ Minimalist compiled programming language (WIP).
 
 Goals for this project:
 - bootstrapping compiler (fennec compiler written in fennec).
-- compiling to x86, x86-64, armv7, and aarch64
+- compiling to x86, x86-64, arm32, and aarch64
 - simple optimisations only (storing values in registers, inlining functions, etc)
 
 ## Usage
