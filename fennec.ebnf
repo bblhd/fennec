@@ -1,0 +1,35 @@
+
+top ::= { declaration }
+
+declaration ::=
+	"intern" functionheader
+	| "extern" functionheader
+	| "public" functionheader statement
+	| "private" functionheader statement
+	| "namespace" name
+	| "type" "(" name { name } ")"
+	| "constraint" type "->" type
+
+type ::=
+	"(" name { name } ")"
+	| name
+
+functionheader ::= "(" name { name } [ ";" name { name } ] ")"
+
+statement ::=
+	return <expression>
+	| "let" variable "=" expression
+	| "let" variable "=" "[" expression "]"
+	| "if" expression statement
+	| "ife" expression statement "else" statement
+	| "while" expression statement
+	| "{" { <statement> } "}"
+	| "(" name { variable } ")"
+
+expression ::=
+	name
+	| number
+	| string
+	| "(" name { expression } ")"
+	| "[" number "]"
+
