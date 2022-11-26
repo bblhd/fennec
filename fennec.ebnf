@@ -17,7 +17,7 @@ type ::=
 functionheader ::= "(" name { name } [ ";" name { name } ] ")"
 
 statement ::=
-	return <expression>
+	"return" expression
 	| "let" variable "=" expression
 	| "let" variable "=" "[" expression "]"
 	| "if" expression statement
