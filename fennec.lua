@@ -42,16 +42,26 @@ function tokenise(str)
 		local token = nil
 		if str:match('^"') then
 			local i = 2
+			token = "\""
 			while str:sub(i,i) ~= '"' and i <= #str do
 				if str:sub(i,i) == '\\' then
 					i = i + 1
+					if str:sub(i,i) == 'n' then
+						token = token .. "\n"
+					elseif str:sub(i,i) == 't' then
+						token = token .. "\t"
+					else
+						token = token .. str:sub(i,i)
+					end
+				else
+					token = token .. str:sub(i,i)
 				end
 				i = i + 1
 			end
+			token = token .. "\""
 			if i > #str then
 				error("compiler error: no end of string")
 			end
-			token = str:sub(1,i)
 			str = str:sub(i+1)
 		elseif str:match('^%d') then
 			if str:match('^0%D') then
@@ -92,10 +102,10 @@ function makeNamespacedName(namespaced)
 		if currentNamespace == "" then
 			return namespaced
 		else
-			return currentNamespace .. "." .. namespaced
+			return currentNamespace .. "_" .. namespaced
 		end
 	end
-	return namespace .. "." .. name
+	return namespace .. "_" .. name
 end
 
 function getCanonicalName(name)
@@ -180,12 +190,6 @@ function compileExpression(token, nextToken, fixStack)
 		isa.functionCall_fini(functionName)
 		
 		requireToken(")", nextToken, "function call for "..functionName.." is missing closing bracket.")
-	elseif token == "{" then
-		local statement = nextToken()
-		while statement ~= "}" do
-			compileStatement(statement, nextToken)
-			statement = nextToken()
-		end
 	elseif token == "^" then
 		local name = nextToken()
 		local canon = getCanonicalName(name)
@@ -198,6 +202,9 @@ function compileExpression(token, nextToken, fixStack)
 		isa.load(token)
 	elseif token:match('^%d') then
 		isa.numlit(tonumber(token))
+	elseif token:match('^"') then
+		token = token:sub(2,#token-1)
+		isa.stringlit(token)
 	else
 		error("compiler error: expression malformed")
 		return nil
@@ -220,29 +227,37 @@ function compileStatement(keyword, nextToken)
 		compileExpression(nextToken)
 		isa.store(var)
 	elseif keyword == "if" then
-		local jumpId = getJumpID()
-		
 		compileExpression(nextToken)
-		isa.ifthen(jumpId)
+		isa.ifthen()
 		compileStatement(nextToken)
-		isa.fi(jumpId)
+		isa.ifend()
+	elseif keyword == "ifelse" then
+		compileExpression(nextToken)
+		isa.ifthen()
+		compileStatement(nextToken)
+		requireToken("else", nextToken, "ifelse missing else")
+		isa.ifelse()
+		compileStatement(nextToken)
+		isa.ifend()
 	elseif keyword == "while" then
-		local jumpIdS = getJumpID()
-		local jumpIdE = getJumpID()
-		
+		isa.whileif()
 		compileExpression(nextToken)
-		isa.label(jumpIdS)
-		isa.ifthen(jumpIdE)
+		isa.whiledo()
 		compileStatement(nextToken)
-		isa.branch(jumpIdS)
-		isa.fi(jumpIdE)
+		isa.whileend()
 	elseif keyword == "ASM" then
-		body = nextToken()
+		local body = nextToken()
 		if body:match('^"') then
 			body = body:sub(2,#body-1)
 		end
 		body = body:gsub('\n%s*', '\n'):gsub('^%s*', ''):gsub('%s*$', '')
 		print(body)
+	elseif keyword == "allocate" then
+		local var = nextToken()
+		requireToken("[", nextToken, "allocate missing opening bracket")
+		compileExpression(nextToken)
+		requireToken("]", nextToken, "allocate missing closing bracket")
+		isa.allocate(var)
 	elseif keyword == "{" then
 		local statement = nextToken()
 		while statement ~= "}" do
@@ -268,6 +283,7 @@ function compileDeclaration(keyword, nextToken)
 		if isa.functionHeader(keyword) then
 			compileStatement(nextToken)
 		end
+		isa.ret()
 		return true
 	elseif keyword == "namespace" then
 		currentNamespace = nextToken()
@@ -279,7 +295,9 @@ function compileDeclaration(keyword, nextToken)
 end
 
 function compile(nextToken)
+	isa.globalStart()
 	while compileDeclaration(nextToken) do end
+	isa.globalEnd()
 end
 
 local file = io.open(arg[1], 'r')

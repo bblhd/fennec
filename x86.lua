@@ -1,11 +1,9 @@
 
 local function as_functionHeader(keyword)
 	if keyword == "extern" then
-		print("")
 		print("extern " .. currentFunction.name)
 		currentFunction = nil
 	elseif keyword == "public" or keyword == "private" then
-		print("")
 		if keyword == "public" then
 			print("global " .. currentFunction.name)
 		end
@@ -45,6 +43,27 @@ local function as_numlit(value)
 	print("mov eax, "..tostring(value))
 end
 
+oldstrings = {}
+stringnum = 0
+
+local function as_stringlit(str)
+	if not oldstrings[str] then
+		pos = stringnum
+		stringnum = stringnum + 1
+		oldstrings[str] = pos
+		
+		print("section .data")
+		local numericalString = ""
+		for i=1, #str do
+			numericalString = numericalString .. tostring(string.byte(str,i)) .. ", "
+		end
+		numericalString = numericalString .. "0"
+		print("_string"..tostring(pos)..": db "..numericalString)
+		print("section .text")
+	end
+	print("lea eax, [_string"..tostring(pos).."]")
+end
+
 local function as_store(dest)
 	print("mov "..getTargetOfVariable(dest)..", eax")
 end
@@ -59,12 +78,42 @@ local function as_goto(jumpId)
 	print("jmp .j"..jumpId)
 end
 
-local function as_if(jumpId)
+jumpstack = {}
+jumpnum = 0
+
+local function as_ifthen()
 	print("cmp eax, 0")
-	print("jne .j"..jumpId)
+	print("je .j"..jumpnum)
+	table.insert(jumpstack, jumpnum)
+	jumpnum = jumpnum + 1
 end
-local function as_fi(jumpId)
-	as_label(jumpId)
+local function as_ifelse()
+	local prevjumpnum = table.remove(jumpstack)
+	print("jmp .j"..jumpnum)
+	print(".j"..prevjumpnum..":")
+	table.insert(jumpstack, jumpnum)
+	jumpnum = jumpnum + 1
+end
+local function as_ifend()
+	local prevjumpnum = table.remove(jumpstack)
+	print(".j"..prevjumpnum..":")
+end
+local function as_whileif()
+	print(".j"..jumpnum..":")
+	table.insert(jumpstack, jumpnum)
+	jumpnum = jumpnum + 1
+end
+local function as_whiledo()
+	print("cmp eax, 0")
+	print("je .j"..jumpnum)
+	table.insert(jumpstack, jumpnum)
+	jumpnum = jumpnum + 1
+end
+local function as_whileend()
+	local endjumpnum = table.remove(jumpstack)
+	local returnjumpnum = table.remove(jumpstack)
+	print("jmp .j"..returnjumpnum)
+	print(".j"..endjumpnum..":")
 end
 
 local function as_stack_init()
@@ -80,9 +129,11 @@ local function as_functionCall_init(func)
 	print("sub esp, "..functionArgCounts[func]*4)
 end
 local function as_functionCall_pass(func, i)
-	i = (functionArgCounts[func] - i - 1) * 4
+	i = (i-1) * 4
 	if i > 0 then
 		print("mov [esp+"..tostring(i).."], eax")
+	elseif i < 0 then
+		print("mov [esp-"..tostring(-i).."], eax")
 	else
 		print("mov [esp], eax")
 	end
@@ -100,17 +151,33 @@ local function as_variablePointer(name)
 	print("lea eax, "..getTargetOfVariable(name))
 end
 
+local function as_allocate(name)
+	print("sub esp, eax")
+	print("mov "..getTargetOfVariable(name).. ", esp")
+	--print("add "..getTargetOfVariable(name).. ", esp")
+end
+
+function as_globalStart()
+		print("section .text")
+end
+
 return {
+	globalStart = as_globalStart,
+	globalEnd = function() end,
 	functionHeader = as_functionHeader,
 	ret = as_return,
 	variableTarget = as_variableTarget,
 	numlit = as_numlit,
+	stringlit = as_stringlit,
 	store = as_store,
 	load = as_load,
-	label = as_label,
-	branch = as_goto,
-	ifthen = as_if,
-	fi = as_fi,
+	ifthen = as_ifthen,
+	ifelse = as_ifelse,
+	ifend = as_ifend,
+	whileif = as_whileif,
+	whiledo = as_whiledo,
+	whileend = as_whileend,
+	allocate = as_allocate,
 	functionCall_init = as_functionCall_init,
 	functionCall_pass = as_functionCall_pass,
 	functionCall_fini = as_functionCall_fini,
