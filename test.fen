@@ -1,18 +1,37 @@
 extern (add x y)
 extern (sub x y)
 extern (mul x y)
+extern (div x y)
+extern (mod x y)
 
-extern (slt x y) //signed less than
+extern (lt x y)
 
+extern (deref ptr)
 extern (set_byte ptr value)
 extern (get_byte ptr)
 
 extern (printc char)
 extern (printn string length)
+extern (exit code)
+
+intern (strlen string)
+intern (print string)
+intern (printi n base)
+
+public (main argc argv) {
+	ifelse (lt 1 argc) {
+		(print "Hello ")
+		(print (deref (add argv 4)))
+		(print "!\n")
+	} else (print "Hello World!\n")
+	return 0
+}
 
 private (strlen string; len) {
 	let len = 0
-	while (get_byte (add string len)) let len = (add len 1)
+	while (get_byte (add string len)) {
+		let len = (add len 1)
+	}
 	return len
 }
 
@@ -20,7 +39,25 @@ private (print string) {
 	(printn string (strlen string))
 }
 
-public (main) {
-	(print "Hello World!\n")
-	return 0
+private (printi n base; buffer rem) {
+	allocate 16 bytes -> buffer
+	(set_byte buffer 0)
+	let buffer = (add buffer 1)
+	
+	while (lt (sub base 1) n) {
+		let rem = (mod n base)
+		
+		ifelse (lt rem 10) let rem = (add rem 48)
+		else let rem = (add rem 55)
+		
+		(set_byte buffer rem)
+		let buffer = (add buffer 1)
+		
+		let n = (div n base)
+	}
+	
+	while (get_byte buffer) {
+		let buffer = (sub buffer 1)
+		(printn buffer 1)
+	}
 }

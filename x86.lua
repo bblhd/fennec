@@ -71,49 +71,42 @@ local function as_load(dest)
 	print("mov eax, "..getTargetOfVariable(dest))
 end
 
-local function as_label(jumpId)
-	print(".j"..jumpId..":")
-end
-local function as_goto(jumpId)
-	print("jmp .j"..jumpId)
-end
-
 jumpstack = {}
 jumpnum = 0
 
 local function as_ifthen()
 	print("cmp eax, 0")
-	print("je .j"..jumpnum)
+	print("je _jump"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifelse()
 	local prevjumpnum = table.remove(jumpstack)
-	print("jmp .j"..jumpnum)
-	print(".j"..prevjumpnum..":")
+	print("jmp _jump"..jumpnum)
+	print("_jump"..prevjumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifend()
 	local prevjumpnum = table.remove(jumpstack)
-	print(".j"..prevjumpnum..":")
+	print("_jump"..prevjumpnum..":")
 end
 local function as_whileif()
-	print(".j"..jumpnum..":")
+	print("_jump"..jumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whiledo()
 	print("cmp eax, 0")
-	print("je .j"..jumpnum)
+	print("je _jump"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whileend()
 	local endjumpnum = table.remove(jumpstack)
 	local returnjumpnum = table.remove(jumpstack)
-	print("jmp .j"..returnjumpnum)
-	print(".j"..endjumpnum..":")
+	print("jmp _jump"..returnjumpnum)
+	print("_jump"..endjumpnum..":")
 end
 
 local function as_stack_init()

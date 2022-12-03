@@ -4,9 +4,12 @@ section .text
 global add
 global sub
 global mul
-global slt
-global printn
-global printc
+global imul
+global div
+global idiv
+global mod
+global imod
+global lt
 
 add:
 	mov eax, [esp+4]
@@ -15,6 +18,7 @@ ret
 
 sub:
 	mov eax, [esp+4]
+	sub eax, [esp+8]
 ret
 
 mul:
@@ -22,7 +26,38 @@ mul:
 	mul dword [esp+8]
 ret
 
-slt:
+imul:
+	mov eax, [esp+4]
+	imul dword [esp+8]
+ret
+
+div:
+	mov edx, 0
+	mov eax, [esp+4]
+	div dword [esp+8]
+ret
+
+idiv:
+	mov edx, 0
+	mov eax, [esp+4]
+	idiv dword [esp+8]
+ret
+
+mod:
+	mov edx, 0
+	mov eax, [esp+4]
+	div dword [esp+8]
+	mov eax, edx
+ret
+
+imod:
+	mov edx, 0
+	mov eax, [esp+4]
+	idiv dword [esp+8]
+	mov eax, edx
+ret
+
+lt:
 	mov eax, [esp+4]
 	sub eax, [esp+8]
 	shr eax, 31
@@ -42,6 +77,13 @@ get_byte:
 	mov al, [ebx]
 ret
 
+global deref
+deref:
+	mov ebx, [esp+4]
+	mov eax, [ebx]
+ret
+
+global printn
 printn:
 	mov eax, 4
 	mov ebx, 1
@@ -50,6 +92,7 @@ printn:
 	int 80h
 ret
 
+global printc
 printc:
 	mov eax, 4
 	mov ebx, 1
@@ -58,10 +101,20 @@ printc:
 	int 80h
 ret
 
+global exit
+exit:
+	mov ebx, [esp+4]
+	mov eax, 1
+	int 80h
+
 extern main
 global _start
 _start:
 	mov ebp, esp
+	mov eax, [esp]
+	lea ebx, [esp+4]
+	mov [esp], ebx
+	push eax
 	call main
 	mov ebx, eax
 	mov eax, 1

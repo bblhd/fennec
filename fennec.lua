@@ -1,3 +1,25 @@
+currentLine = 1
+currentNamespace = ""
+currentFunction = nil
+functionArgCounts = {}
+
+local isa = require "x86"
+
+function main()
+	if not arg[1] then
+		error("no file to compile")
+	end
+	
+	local file = io.open(arg[1], 'r')
+	local program = file:read('a')
+	file:close()
+	compile(tokenise(program))
+end
+
+function cerr(msg)
+	error("compiler error at line "..currentLine.." in file "..arg[1]..": "..msg)
+end
+
 function dump(o, t)
 	if not t then t = '' else t = t .. '  ' end
 	if type(o) == 'table' then
@@ -33,8 +55,19 @@ end
 
 function tokenise(str)
 	return function()
-		str = str:gsub('^%s+//[^\n]*', '')
-		str = str:gsub('^%s+', '')
+		if str:match('^%s') then
+		local whitespace
+			whitespace, str = str:match('^(%s+)(.*)$')
+			local _, count = (whitespace or ""):gsub("\n", "")
+			currentLine = currentLine + count
+		end
+		if str:match('^//') then
+		local comment
+			comment, str = str:match('^(//[^\n]%s+)(.*)$')
+		local _, count = (comment or ""):gsub("\n", "")
+		currentLine = currentLine + count
+		end
+		--whitespace, str = str:match('^(%s+//[^\n]\s*)(.*)$', '')
 		if #str <= 0 then
 			return nil
 		end
@@ -60,7 +93,7 @@ function tokenise(str)
 			end
 			token = token .. "\""
 			if i > #str then
-				error("compiler error: no end of string")
+				cerr("no end of string")
 			end
 			str = str:sub(i+1)
 		elseif str:match('^%d') then
@@ -80,19 +113,11 @@ function tokenise(str)
 		end
 		
 		if not token then
-			error("compiler error: unknown token")
+			cerr("unknown token")
 		end
 		return token
 	end
 end
-
-currentNamespace = ""
-currentFunction = nil
-functionArgCounts = {}
-constraints = {}
-jumpnum = 0
-
-local isa = require "x86"
 
 function makeNamespacedName(namespaced)
 	local namespace, name = namespaced:match('^([^%._]+)%.(.*)$')
@@ -125,7 +150,6 @@ function getFunctionHeader(nextToken)
 			args = {},
 			vars = {},
 		}
-		jumpnum = 0
 		currentFunction.name = makeNamespacedName(nextToken())
 		
 		local section = 1
@@ -134,7 +158,7 @@ function getFunctionHeader(nextToken)
 			if section == 1 and token == ";" then 
 				section = 2
 			elseif not token:match("^[%a_][%w%._]*$") then
-				error("compiler error: function arguments malformed")
+				cerr("function arguments malformed")
 			elseif section == 1 then
 				table.insert(currentFunction.args, token)
 			elseif section == 2 then
@@ -144,7 +168,7 @@ function getFunctionHeader(nextToken)
 		end
 		functionArgCounts[currentFunction.name] = #currentFunction.args
 	else
-		error("compiler error: function declaration malformed")
+		cerr("function declaration malformed")
 	end
 end
 
@@ -159,17 +183,12 @@ function getTargetOfVariable(name)
 			return "[ebp-"..tostring(4*k).."]"
 		end
 	end
-	error("compiler error: undeclared variable '"..name.."'")
-end
-
-function getJumpID()
-	jumpnum = jumpnum + 1
-	return jumpnum
+	cerr("undeclared variable '"..name.."'")
 end
 
 function requireToken(what, nextToken, errorMessage)
 	if nextToken() ~= what then
-		error("compiler error: "..errorMessage)
+		cerr(errorMessage)
 	end
 end
 
@@ -181,6 +200,9 @@ function compileExpression(token, nextToken, fixStack)
 	
 	if token == "(" then
 		local functionName = getCanonicalName(nextToken())
+		if not functionArgCounts[functionName] then
+			cerr("undeclared function")
+		end
 		
 		isa.functionCall_init(functionName)
 		for i = 1,functionArgCounts[functionName] do
@@ -206,7 +228,7 @@ function compileExpression(token, nextToken, fixStack)
 		token = token:sub(2,#token-1)
 		isa.stringlit(token)
 	else
-		error("compiler error: expression malformed")
+		cerr(token .. " is not a valid expression")
 		return nil
 	end
 	return true
@@ -253,10 +275,15 @@ function compileStatement(keyword, nextToken)
 		body = body:gsub('\n%s*', '\n'):gsub('^%s*', ''):gsub('%s*$', '')
 		print(body)
 	elseif keyword == "allocate" then
-		local var = nextToken()
-		requireToken("[", nextToken, "allocate missing opening bracket")
 		compileExpression(nextToken)
-		requireToken("]", nextToken, "allocate missing closing bracket")
+		local units = nextToken()
+		if units == "words" or units == "word" then
+		elseif units == "bytes" or units == "byte" then
+		else
+			cerr("allocate invalid units")
+		end
+		requireToken("->", nextToken, "allocate missing arrow")
+		local var = nextToken()
 		isa.allocate(var)
 	elseif keyword == "{" then
 		local statement = nextToken()
@@ -300,9 +327,4 @@ function compile(nextToken)
 	isa.globalEnd()
 end
 
-local file = io.open(arg[1], 'r')
-local program = file:read('a')
-file:close()
-
-local tokeniser = tokenise(program)  
-compile(tokeniser)
+main()
