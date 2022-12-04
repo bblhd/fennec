@@ -1,4 +1,3 @@
-
 section .text
 
 global add
@@ -9,7 +8,6 @@ global div
 global idiv
 global mod
 global imod
-global lt
 
 add:
 	mov eax, [esp+4]
@@ -57,34 +55,126 @@ imod:
 	mov eax, edx
 ret
 
+global bitwiseAnd
+bitwiseAnd:
+	mov eax, [esp+4]
+	and eax, [esp+8]
+ret
+
+global bitwiseOr
+bitwiseOr:
+	mov eax, [esp+4]
+	or eax, [esp+8]
+ret
+
+global and
+and:
+	cmp dword [esp+4], 0
+	setz cl
+	dec eax
+	and eax, [esp+8]
+ret
+
+global or
+or:
+	mov eax, [esp+4]
+	or eax, [esp+8]
+ret
+
+global lt
 lt:
 	mov eax, [esp+4]
 	sub eax, [esp+8]
 	shr eax, 31
 ret
 
-global set_byte
-set_byte:
+global lte
+lte:
+	mov eax, [esp+4]
+	sub eax, [esp+8]
+	dec eax
+	shr eax, 31
+ret
+
+global gt
+gt:
+	mov eax, [esp+8]
+	sub eax, [esp+4]
+	shr eax, 31
+ret
+
+global gte
+gte:
+	mov eax, [esp+8]
+	sub eax, [esp+4]
+	dec eax
+	shr eax, 31
+ret
+
+global storeByte
+storeByte:
 	mov ebx, [esp+8]
 	mov eax, [esp+4]
 	mov byte [eax], bl
 ret
 
-global get_byte
-get_byte:
+global loadByte
+loadByte:
 	mov ebx, [esp+4]
 	mov eax, 0
-	mov al, [ebx]
+	mov al, byte [ebx]
 ret
 
-global deref
-deref:
+global storeWord
+storeWord:
+	mov ebx, [esp+8]
+	mov eax, [esp+4]
+	mov [eax], ebx
+ret
+
+global loadWord
+loadWord:
 	mov ebx, [esp+4]
 	mov eax, [ebx]
 ret
 
-global printn
-printn:
+global open
+open:
+	mov eax, 5
+	mov ebx, dword [esp+4]
+	mov ecx, dword [esp+8]
+	mov edx, 0
+	int 80h
+ret
+
+global close
+close:
+	mov eax, 6
+	mov ebx, dword [esp+4]
+	int 80h
+ret
+
+global read
+read:
+	mov eax, 3
+	mov ebx, dword [esp+4]
+	mov ecx, dword [esp+8]
+	mov edx, dword [esp+12]
+	int 80h
+ret
+
+global write
+write:
+	mov eax, 4
+	mov ebx, dword [esp+4]
+	mov ecx, dword [esp+8]
+	mov edx, dword [esp+12]
+	int 80h
+ret
+
+
+global putn
+putn:
 	mov eax, 4
 	mov ebx, 1
 	mov ecx, dword [esp+4]
@@ -92,13 +182,25 @@ printn:
 	int 80h
 ret
 
-global printc
-printc:
+global putc
+putc:
 	mov eax, 4
 	mov ebx, 1
 	lea ecx, [esp+4]
 	mov edx, 1
 	int 80h
+ret
+
+global getc
+getc:
+	push 0
+	mov eax, 3
+	mov ebx, 0
+	lea ecx, [esp]
+	mov edx, 1
+	int 80h
+	mov eax, 0
+	pop eax
 ret
 
 global exit
@@ -108,6 +210,7 @@ exit:
 	int 80h
 
 extern main
+
 global _start
 _start:
 	mov ebp, esp

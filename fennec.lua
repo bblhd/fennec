@@ -2,6 +2,7 @@ currentLine = 1
 currentNamespace = ""
 currentFunction = nil
 functionArgCounts = {}
+constants = {}
 
 local isa = require "x86"
 
@@ -56,18 +57,17 @@ end
 function tokenise(str)
 	return function()
 		if str:match('^%s') then
-		local whitespace
+			local whitespace
 			whitespace, str = str:match('^(%s+)(.*)$')
 			local _, count = (whitespace or ""):gsub("\n", "")
 			currentLine = currentLine + count
 		end
-		if str:match('^//') then
-		local comment
-			comment, str = str:match('^(//[^\n]%s+)(.*)$')
-		local _, count = (comment or ""):gsub("\n", "")
-		currentLine = currentLine + count
+		if str:match('^//[^\n]*%s+') then
+			local comment
+			comment, str = str:match('^(//[^\n]*%s+)(.*)$')
+			local _, count = (comment or ""):gsub("\n", "")
+			currentLine = currentLine + count
 		end
-		--whitespace, str = str:match('^(%s+//[^\n]\s*)(.*)$', '')
 		if #str <= 0 then
 			return nil
 		end
@@ -96,12 +96,25 @@ function tokenise(str)
 				cerr("no end of string")
 			end
 			str = str:sub(i+1)
-		elseif str:match('^%d') then
-			if str:match('^0%D') then
-				token, str = str:match("^(0)(.*)$")
-			else
-				token, str = str:match("^([1-9]%d*)(.*)$")
+		elseif str:match('^\'\\') then
+			token, str = str:match("^\'\\(.)\'(.*)$")
+			if token == 'n' then
+				token = "\n"
+			elseif token == 't' then
+				token = "\t"
 			end
+			token = tostring(string.byte(token, 1))
+		elseif str:match('^\'') then
+			token, str = str:match("^\'(.)\'(.*)$")
+			token = tostring(string.byte(token, 1))
+		elseif str:match('^0x[0-9a-f]') then
+			token, str = str:match("^0x([0-9a-f]+)(.*)$")
+			token = tostring(tonumber(token, 16))
+		elseif str:match('^0b[01]') then
+			token, str = str:match("^0b([01]+)(.*)$")
+			token = tostring(tonumber(token, 2))
+		elseif str:match('^[0-9]') then
+			token, str = str:match("^([0-9]+)(.*)$")
 		elseif str:match('^[%a_]') then
 			token, str = str:match('^([%a_][%w%._]*)(.*)$')
 		elseif str:match('^%p') then
@@ -221,7 +234,17 @@ function compileExpression(token, nextToken, fixStack)
 			isa.variablePointer(name)
 		end
 	elseif token:match('^[%a_]') then
-		isa.load(token)
+		local constant = constants[makeNamespacedName(token)]
+		if constant then
+			if constant:match('^%d') then
+				isa.numlit(tonumber(constant))
+			elseif constant:match('^"') then
+				constant = constant:sub(2,#constant-1)
+				isa.stringlit(constant)
+			end
+		else
+			isa.load(token)
+		end
 	elseif token:match('^%d') then
 		isa.numlit(tonumber(token))
 	elseif token:match('^"') then
@@ -311,6 +334,27 @@ function compileDeclaration(keyword, nextToken)
 			compileStatement(nextToken)
 		end
 		isa.ret()
+		return true
+	elseif keyword == "constant" then
+		local name = nextToken()
+		name = makeNamespacedName(name)
+		if constants[name] then
+			cerr("constant "..name.." already defined")
+		end
+		requireToken("=", nextToken, "constant is missing equals sign")
+		local value = nextToken()
+		if value:match('^[%a_]') then
+			local canon = makeNamespacedName(value)
+			if constants[canon] then
+				constants[name] = constants[canon]
+			else
+				cerr("constant values must be literals")
+			end
+		elseif value:match('^%d') or value:match('^"') then
+			constants[name] = value
+		else
+			cerr("constant values must be literals")
+		end
 		return true
 	elseif keyword == "namespace" then
 		currentNamespace = nextToken()

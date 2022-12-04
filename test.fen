@@ -3,61 +3,78 @@ extern (sub x y)
 extern (mul x y)
 extern (div x y)
 extern (mod x y)
-
 extern (lt x y)
+extern (lte x y)
+extern (gt x y)
+extern (gte x y)
+extern (or x y)
+extern (and x y)
+extern (bitwiseOr x y)
+extern (bitwiseAnd x y)
 
-extern (deref ptr)
-extern (set_byte ptr value)
-extern (get_byte ptr)
+extern (storeWord ptr value)
+extern (loadWord ptr)
+extern (storeByte ptr value)
+extern (loadByte ptr)
 
-extern (printc char)
-extern (printn string length)
+extern (putc char)
+extern (putn string length)
+extern (getc)
+
 extern (exit code)
+
+extern (open path flags)
+extern (close fd)
+extern (read fd buffer length)
+extern (write fd buffer length)
+
+constant O_RDONLY = 0
+constant O_WRONLY = 1
+constant O_RDWR = 2
+constant O_ACCMODE = 3
+constant O_APPEND = 2000
 
 intern (strlen string)
 intern (print string)
-intern (printi n base)
+intern (scan string n)
 
-public (main argc argv) {
-	ifelse (lt 1 argc) {
-		(print "Hello ")
-		(print (deref (add argv 4)))
-		(print "!\n")
-	} else (print "Hello World!\n")
-	return 0
+public (main argc argv; fd buffer readed) {
+	if (gt argc 1) {
+		let fd = (open (loadWord (add argv 4)) O_RDONLY)
+		
+		allocate 64 bytes -> buffer
+		
+		let readed = 64
+		while readed {
+			let readed = (read fd buffer 64)
+			(putn buffer readed)
+		}
+		
+		(close fd)
+		return 0
+	}
+	return 1
 }
 
 private (strlen string; len) {
 	let len = 0
-	while (get_byte (add string len)) {
+	while (loadByte (add string len)) {
 		let len = (add len 1)
 	}
 	return len
 }
 
 private (print string) {
-	(printn string (strlen string))
+	(putn string (strlen string))
 }
 
-private (printi n base; buffer rem) {
-	allocate 16 bytes -> buffer
-	(set_byte buffer 0)
-	let buffer = (add buffer 1)
-	
-	while (lt (sub base 1) n) {
-		let rem = (mod n base)
-		
-		ifelse (lt rem 10) let rem = (add rem 48)
-		else let rem = (add rem 55)
-		
-		(set_byte buffer rem)
+private (scan buffer n; char) {
+	let char = (getc)
+	while (sub char 10) {
+		let n = (sub n 1)
+		if (lt 0 n) (storeByte buffer char)
 		let buffer = (add buffer 1)
-		
-		let n = (div n base)
+		let char = (getc)
 	}
-	
-	while (get_byte buffer) {
-		let buffer = (sub buffer 1)
-		(printn buffer 1)
-	}
+	(storeByte buffer 0)
 }
