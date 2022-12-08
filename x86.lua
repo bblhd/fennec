@@ -1,4 +1,19 @@
 
+
+local function getTargetOfVariable(name)
+	for k,v in ipairs(currentFunction.args) do
+		if v == name then
+			return "[ebp+"..tostring(4 * (k+1)).."]"
+		end
+	end
+	for k,v in ipairs(currentFunction.vars) do
+		if v == name then
+			return "[ebp-"..tostring(4*k).."]"
+		end
+	end
+	cerr("undeclared variable '"..name.."'")
+end
+
 local function as_functionHeader(keyword)
 	if keyword == "extern" then
 		print("extern " .. currentFunction.name)
@@ -13,7 +28,6 @@ local function as_functionHeader(keyword)
 		if #currentFunction.vars > 0 then
 			print("sub esp, "..4*#currentFunction.vars)
 		end
-		return true
 	end
 end
 
@@ -147,11 +161,10 @@ end
 local function as_allocate(name)
 	print("sub esp, eax")
 	print("mov "..getTargetOfVariable(name).. ", esp")
-	--print("add "..getTargetOfVariable(name).. ", esp")
 end
 
 function as_globalStart()
-		print("section .text")
+	print("section .text")
 end
 
 return {

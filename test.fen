@@ -28,25 +28,27 @@ extern (close fd)
 extern (read fd buffer length)
 extern (write fd buffer length)
 
+intern (strlen string)
+intern (print string)
+intern (scan string n)
+
 constant O_RDONLY = 0
 constant O_WRONLY = 1
 constant O_RDWR = 2
 constant O_ACCMODE = 3
 constant O_APPEND = 2000
 
-intern (strlen string)
-intern (print string)
-intern (scan string n)
+constant BUFFER_SIZE = 64
 
 public (main argc argv; fd buffer readed) {
 	if (gt argc 1) {
 		let fd = (open (loadWord (add argv 4)) O_RDONLY)
 		
-		allocate 64 bytes -> buffer
+		allocate [buffer BUFFER_SIZE]
 		
-		let readed = 64
+		let readed = 1
 		while readed {
-			let readed = (read fd buffer 64)
+			let readed = (read fd buffer BUFFER_SIZE)
 			(putn buffer readed)
 		}
 		
@@ -56,16 +58,16 @@ public (main argc argv; fd buffer readed) {
 	return 1
 }
 
+private (print string) {
+	(putn string (strlen string))
+}
+
 private (strlen string; len) {
 	let len = 0
 	while (loadByte (add string len)) {
 		let len = (add len 1)
 	}
 	return len
-}
-
-private (print string) {
-	(putn string (strlen string))
 }
 
 private (scan buffer n; char) {

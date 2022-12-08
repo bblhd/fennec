@@ -1,374 +1,375 @@
 currentLine = 1
-currentNamespace = ""
-currentFunction = nil
+currentFunction = {name="", args={}, vars={}}
 functionArgCounts = {}
 constants = {}
 
 local isa = require "x86"
 
+function islocal(name)
+	for k, v in ipairs(currentFunction.args) do
+		if v == name then
+			return true
+		end
+	end
+	for k, v in ipairs(currentFunction.vars) do
+		if v == name then
+			return true
+		end
+	end
+end
+
 function main()
 	if not arg[1] then
 		error("no file to compile")
 	end
+	compile(tokeniser(arg[1]))
+end
+
+function compile(tokens)
+	isa.globalStart()
+	while not tokens.eof() do
+		tokens.assert(declaration(tokens), 'invalid declaration')
+	end
+	isa.globalEnd()
+end
+
+function declaration(tokens)
+	return objectDeclaration(tokens) or constantDeclaration(tokens)
+end
+
+function objectDeclaration(tokens)
+	local keyword = tokens.keyword('extern', 'intern', 'public', 'private')
+	if keyword then
+		currentFunction = getFunctionHeader(tokens)
+		functionArgCounts[currentFunction.name] = #currentFunction.args
+		isa.functionHeader(keyword)
+		if keyword == "public" or keyword == "private" then
+			tokens.assert(statement(tokens), 'invalid statement')
+			isa.ret()
+		end
+		return true
+	end
+end
+
+function constantDeclaration(tokens)
+	if tokens.keyword('constant') then
+		local name = tokens.name()
+		tokens.assert(name, 'constant name must actually be a name')
+		tokens.assert(not constants[name], "constant "..name.." already defined")
+		tokens.assert(tokens.symbol('='), "constant is missing equals sign")
+		local value
+		
+		value = tokens.name()
+		if value then
+			tokens.assert(constants[value], "constant values must be literals")
+			constants[name] = constants[value]
+		end
+		value = tokens.number()
+		if value then constants[name] = {type = 'number', value = value} end
+		value = tokens.string()
+		if value then constants[name] = {type = 'string', value = value} end
+		return true
+	end
+end
+
+function statement(tokens)
+	return returnStatement(tokens)
+		or letStatement(tokens)
+		or ifStatement(tokens)
+		or ifElseStatement(tokens)
+		or whileStatement(tokens)
+		or allocateStatement(tokens)
+		or blockStatement(tokens)
+		or expression(tokens)
+end
+
+function returnStatement(tokens)
+	if tokens.keyword('return') then
+		tokens.assert(expression(tokens), 'invalid expression')
+		isa.ret()
+		return true
+	end
+end
+
+function letStatement(tokens)
+	if tokens.keyword('let') then
+		local name = tokens.name()
+		tokens.assert(name, "let destination name invalid")
+		tokens.assert(islocal(name), "let destination undefined")
+		tokens.assert(tokens.symbol('='), "let missing equals sign")
+		tokens.assert(expression(tokens), 'invalid expression')
+		isa.store(name)
+		return true
+	end
+end
+
+function ifStatement(tokens)
+	if tokens.keyword('if') then
+		tokens.assert(expression(tokens), 'invalid expression')
+		isa.ifthen()
+		tokens.assert(statement(tokens), 'invalid statement')
+		isa.ifend()
+		return true
+	end
+end
+
+function ifElseStatement(tokens)
+	if tokens.keyword('ifelse') then
+		tokens.assert(expression(tokens), 'invalid expression')
+		isa.ifthen()
+		tokens.assert(expression(tokens), 'invalid expression')
+		tokens.assert(tokens.keyword('else'), "ifelse missing else")
+		isa.ifelse()
+		tokens.assert(statement(tokens), 'invalid statement')
+		isa.ifend()
+		return true
+	end
+end
+
+function whileStatement(tokens)
+	if tokens.keyword('while') then
+		isa.whileif()
+		tokens.assert(expression(tokens), 'invalid expression')
+		isa.whiledo()
+		tokens.assert(statement(tokens), 'invalid statement')
+		isa.whileend()
+		return true
+	end
+end
+
+function allocateStatement(tokens)
+	if tokens.keyword('allocate') then
+		tokens.assert(tokens.symbol("["), "allocate missing open square bracket")
 	
-	local file = io.open(arg[1], 'r')
+		local name = tokens.name()
+		tokens.assert(name, "allocate invalid name")
+		tokens.assert(islocal(name), "allocate destination undefined")
+		
+		tokens.assert(expression(tokens), 'invalid expression')
+		
+		tokens.assert(tokens.symbol("]"), "allocate missing closing bracket")
+		
+		isa.allocate(name)
+		return true
+	end
+end
+
+function blockStatement(tokens)
+	if tokens.symbol('{') then
+		while not tokens.symbol('}') do
+			tokens.assert(statement(tokens), 'invalid statement')
+			tokens.assert(not tokens.eof(), 'no end of block')
+		end
+		return true
+	end
+end
+
+function expression(tokens)
+	return functionCall(tokens)
+		or variableGet(tokens)
+		or numericalLiteral(tokens)
+		or stringLiteral(tokens)
+end
+
+function functionCall(tokens)
+	if tokens.symbol('(') then
+		local name = tokens.name()
+		tokens.assert(functionArgCounts[name], "undeclared function")
+		
+		isa.functionCall_init(name)
+		for i = 1,functionArgCounts[name] do
+			expression(tokens, true)
+			isa.functionCall_pass(name, i)
+		end
+		isa.functionCall_fini(name)
+		
+		tokens.assert(tokens.symbol(')'), "function call for "..name.." is missing closing bracket")
+		return true
+	end
+end
+
+
+function variableGet(tokens)
+	local name = tokens.name()
+	if name then
+		local constant = constants[name]
+		if constant then
+			if constant.type == 'number' then
+				isa.numlit(tonumber(constant.value))
+			elseif constant.type == 'string' then
+				isa.stringlit(constant.value)
+			end
+		else
+			isa.load(name)
+		end
+		return true
+	end
+end
+
+function numericalLiteral(tokens)
+	local number = tokens.number()
+	if number then
+		isa.numlit(tonumber(number))
+		return true
+	end
+end
+
+function stringLiteral(tokens)
+	local string = tokens.string()
+	if string then
+		isa.stringlit(string)
+		return true
+	end
+end
+
+
+function getFunctionHeader(tokens)
+	if tokens.symbol("(") then
+		local name, args, vars = tokens.name(), {}, {}
+		tokens.assert(name, "function name invalid")
+		
+		local allocating = false
+		while not tokens.symbol(")") do
+			if not allocating and tokens.symbol(";") then 
+				allocating = true
+			else
+				local variable = tokens.name()
+				tokens.assert(variable, "function argument name invalid")
+				table.insert(allocating and vars or args, variable)
+			end
+		end
+		
+		return {name = name, args = args, vars = vars}
+	end
+end
+
+function tokeniser(path)
+	local line = 1
+	local file = io.open(path, 'r')
 	local program = file:read('a')
 	file:close()
-	compile(tokenise(program))
-end
-
-function cerr(msg)
-	error("compiler error at line "..currentLine.." in file "..arg[1]..": "..msg)
-end
-
-function dump(o, t)
-	if not t then t = '' else t = t .. '  ' end
-	if type(o) == 'table' then
-		local s = '{\n'
-		for k,v in pairs(o) do
-			s = s .. t .. '  [' .. dump(k, t) .. '] = ' .. dump(v, t) .. ',\n'
+	
+	local function cerr(msg)
+		error("fennec compiler error at line "..line.." in file "..path..": "..msg)
+	end
+	
+	local function assert(cond, msg)
+		if not cond then
+			cerr(msg)
 		end
-		return s .. t .. '}'
-	elseif type(o) == 'string' then
-		return '"'..o..'"'
-	else
-		return tostring(o)
 	end
-end
-
-function ival(list)
-	local i = 0
-	return function()
-		i = i + 1
-		return list[i]
-	end
-end
-
-function listof(iterator)
-	local l = {}
-	local i = 0
-	for v in iterator do
-		i = i + 1
-		l[i] = v
-	end
-	return l
-end
-
-function tokenise(str)
-	return function()
-		if str:match('^%s') then
+	
+	local function removeJunk()
+		if program:match('^%s') then
 			local whitespace
-			whitespace, str = str:match('^(%s+)(.*)$')
-			local _, count = (whitespace or ""):gsub("\n", "")
-			currentLine = currentLine + count
+			whitespace, program = program:match('^(%s+)(.*)$')
+			_, whitespace = whitespace:gsub("\n", "")
+			line = line + whitespace
+			removeJunk()
+		elseif program:match('^//[^\n]*') then
+			program = program:match('^//[^\n]*(.*)$')
+			removeJunk()
 		end
-		if str:match('^//[^\n]*%s+') then
-			local comment
-			comment, str = str:match('^(//[^\n]*%s+)(.*)$')
-			local _, count = (comment or ""):gsub("\n", "")
-			currentLine = currentLine + count
+	end
+	
+	local function pullSymbol(...)
+		removeJunk()
+		for _,option in ipairs(table.pack(...)) do
+			if #program >= #option and program:sub(1,#option) == option then
+				program = program:sub(#option+1)
+				return option
+			end
 		end
-		if #str <= 0 then
-			return nil
-		end
-		
-		local token = nil
-		if str:match('^"') then
-			local i = 2
-			token = "\""
-			while str:sub(i,i) ~= '"' and i <= #str do
-				if str:sub(i,i) == '\\' then
-					i = i + 1
-					if str:sub(i,i) == 'n' then
-						token = token .. "\n"
-					elseif str:sub(i,i) == 't' then
-						token = token .. "\t"
-					else
-						token = token .. str:sub(i,i)
-					end
-				else
-					token = token .. str:sub(i,i)
+	end
+	
+	local function pullKeyword(...)
+		removeJunk()
+		if program:match('^[a-zA-Z_]') then
+			local keyword = program:match('^([a-zA-Z_][a-zA-Z0-9_]*)')
+			for _,option in ipairs(table.pack(...)) do
+				if keyword == option then
+					program = program:sub(#option+1)
+					return option
 				end
-				i = i + 1
-			end
-			token = token .. "\""
-			if i > #str then
-				cerr("no end of string")
-			end
-			str = str:sub(i+1)
-		elseif str:match('^\'\\') then
-			token, str = str:match("^\'\\(.)\'(.*)$")
-			if token == 'n' then
-				token = "\n"
-			elseif token == 't' then
-				token = "\t"
-			end
-			token = tostring(string.byte(token, 1))
-		elseif str:match('^\'') then
-			token, str = str:match("^\'(.)\'(.*)$")
-			token = tostring(string.byte(token, 1))
-		elseif str:match('^0x[0-9a-f]') then
-			token, str = str:match("^0x([0-9a-f]+)(.*)$")
-			token = tostring(tonumber(token, 16))
-		elseif str:match('^0b[01]') then
-			token, str = str:match("^0b([01]+)(.*)$")
-			token = tostring(tonumber(token, 2))
-		elseif str:match('^[0-9]') then
-			token, str = str:match("^([0-9]+)(.*)$")
-		elseif str:match('^[%a_]') then
-			token, str = str:match('^([%a_][%w%._]*)(.*)$')
-		elseif str:match('^%p') then
-			if str:match('^[%(%)%[%]{},]') then
-				token, str = str:match("^(.)(.*)$")
-			else
-				token, str = str:match('^(%p+)(.*)$')
 			end
 		end
-		
-		if not token then
-			cerr("unknown token")
+	end
+	
+	local escapes = {
+		['b'] = 8,
+		['t'] = 9,
+		['n'] = 10,
+		['r'] = 13,
+		['e'] = 27
+	}
+	
+	local function pullName()
+		removeJunk()
+		if program:match('^[a-zA-Z_]') then
+			local name
+			name, program = program:match('^([a-zA-Z_][a-zA-Z0-9%._]*)(.*)$')
+			return name
+		end
+	end
+	
+	local function pullNumber()
+		removeJunk()
+		local token = nil
+		if program:match("^'\\.'") then
+			token = tostring(escapes[program:sub(3,3)] or string.byte(program,3))
+			program = program:sub(5)
+		elseif program:match("^'.'") then
+			token = tostring(string.byte(program, 2))
+			program = program:sub(4)
+		elseif program:match('^0x[0-9a-f]') then
+			token, program = program:match("^0x([0-9a-f]+)(.*)$")
+			token = tostring(tonumber(token, 16))
+		elseif program:match('^0b[01]') then
+			token, program = program:match("^0b([01]+)(.*)$")
+			token = tostring(tonumber(token, 2))
+		elseif program:match('^[0-9]') then
+			token, program = program:match("^([0-9]+)(.*)$")
 		end
 		return token
 	end
-end
-
-function makeNamespacedName(namespaced)
-	local namespace, name = namespaced:match('^([^%._]+)%.(.*)$')
-	if not name or not namespace then
-		name = namespaced
-		namespace = currentNamespace
-		if currentNamespace == "" then
-			return namespaced
-		else
-			return currentNamespace .. "_" .. namespaced
-		end
-	end
-	return namespace .. "_" .. name
-end
-
-function getCanonicalName(name)
-	local namespaced = makeNamespacedName(name)
-	for k,v in pairs(functionArgCounts) do
-		if k == namespaced then
-			return namespaced
-		end
-	end
-	return name
-end
-
-function getFunctionHeader(nextToken)
-	if nextToken() == "(" then
-		currentFunction = {
-			name = "",
-			args = {},
-			vars = {},
-		}
-		currentFunction.name = makeNamespacedName(nextToken())
-		
-		local section = 1
-		local token = nextToken()
-		while token ~= ")" do
-			if section == 1 and token == ";" then 
-				section = 2
-			elseif not token:match("^[%a_][%w%._]*$") then
-				cerr("function arguments malformed")
-			elseif section == 1 then
-				table.insert(currentFunction.args, token)
-			elseif section == 2 then
-				table.insert(currentFunction.vars, token)
+	
+	local function pullString()
+		removeJunk()
+		if program:match('^"') then
+			local i = 2
+			local string = ""
+			while program:sub(i,i) ~= '"' and i <= #program do
+				if program:sub(i,i) == '\\' then
+					i = i + 1
+					if i > #program then break end
+					if escapes[program:sub(i,i)] then
+						string = string .. string.char(escapes[program:sub(i,i)])
+					else 
+						string = string .. program:sub(i,i)
+					end
+				else
+					string = string .. program:sub(i,i)
+				end
+				i = i + 1
 			end
-			token = nextToken()
+			if i > #program then
+				cerr("no end of string")
+			end
+			program = program:sub(i+1)
+			return string
 		end
-		functionArgCounts[currentFunction.name] = #currentFunction.args
-	else
-		cerr("function declaration malformed")
-	end
-end
-
-function getTargetOfVariable(name)
-	for k,v in ipairs(currentFunction.args) do
-		if v == name then
-			return "[ebp+"..tostring(4 * (k+1)).."]"
-		end
-	end
-	for k,v in ipairs(currentFunction.vars) do
-		if v == name then
-			return "[ebp-"..tostring(4*k).."]"
-		end
-	end
-	cerr("undeclared variable '"..name.."'")
-end
-
-function requireToken(what, nextToken, errorMessage)
-	if nextToken() ~= what then
-		cerr(errorMessage)
-	end
-end
-
-function compileExpression(token, nextToken, fixStack)
-	if not nextToken then
-		nextToken = token
-		token = nextToken()
 	end
 	
-	if token == "(" then
-		local functionName = getCanonicalName(nextToken())
-		if not functionArgCounts[functionName] then
-			cerr("undeclared function")
-		end
-		
-		isa.functionCall_init(functionName)
-		for i = 1,functionArgCounts[functionName] do
-			compileExpression(nextToken(), nextToken, true)
-			isa.functionCall_pass(functionName, i)
-		end
-		isa.functionCall_fini(functionName)
-		
-		requireToken(")", nextToken, "function call for "..functionName.." is missing closing bracket.")
-	elseif token == "^" then
-		local name = nextToken()
-		local canon = getCanonicalName(name)
-		if functionArgCounts[canon] then
-			isa.functionPointer(canon)
-		else
-			isa.variablePointer(name)
-		end
-	elseif token:match('^[%a_]') then
-		local constant = constants[makeNamespacedName(token)]
-		if constant then
-			if constant:match('^%d') then
-				isa.numlit(tonumber(constant))
-			elseif constant:match('^"') then
-				constant = constant:sub(2,#constant-1)
-				isa.stringlit(constant)
-			end
-		else
-			isa.load(token)
-		end
-	elseif token:match('^%d') then
-		isa.numlit(tonumber(token))
-	elseif token:match('^"') then
-		token = token:sub(2,#token-1)
-		isa.stringlit(token)
-	else
-		cerr(token .. " is not a valid expression")
-		return nil
-	end
-	return true
-end
-
-function compileStatement(keyword, nextToken)
-	if not nextToken then
-		nextToken = keyword
-		keyword = nextToken()
-	end
-	
-	if keyword == "return" then
-		compileExpression(nextToken)
-		isa.ret()
-	elseif keyword == "let" then
-		local var = nextToken()
-		requireToken("=", nextToken, "let is missing equals sign")
-		compileExpression(nextToken)
-		isa.store(var)
-	elseif keyword == "if" then
-		compileExpression(nextToken)
-		isa.ifthen()
-		compileStatement(nextToken)
-		isa.ifend()
-	elseif keyword == "ifelse" then
-		compileExpression(nextToken)
-		isa.ifthen()
-		compileStatement(nextToken)
-		requireToken("else", nextToken, "ifelse missing else")
-		isa.ifelse()
-		compileStatement(nextToken)
-		isa.ifend()
-	elseif keyword == "while" then
-		isa.whileif()
-		compileExpression(nextToken)
-		isa.whiledo()
-		compileStatement(nextToken)
-		isa.whileend()
-	elseif keyword == "ASM" then
-		local body = nextToken()
-		if body:match('^"') then
-			body = body:sub(2,#body-1)
-		end
-		body = body:gsub('\n%s*', '\n'):gsub('^%s*', ''):gsub('%s*$', '')
-		print(body)
-	elseif keyword == "allocate" then
-		compileExpression(nextToken)
-		local units = nextToken()
-		if units == "words" or units == "word" then
-		elseif units == "bytes" or units == "byte" then
-		else
-			cerr("allocate invalid units")
-		end
-		requireToken("->", nextToken, "allocate missing arrow")
-		local var = nextToken()
-		isa.allocate(var)
-	elseif keyword == "{" then
-		local statement = nextToken()
-		while statement ~= "}" do
-			compileStatement(statement, nextToken)
-			statement = nextToken()
-		end
-	elseif keyword then
-		return compileExpression(keyword, nextToken)
-	end
-	if keyword then
-		return true
-	end
-end
-
-function compileDeclaration(keyword, nextToken)
-	if not nextToken then
-		nextToken = keyword
-		keyword = nextToken()
-	end
-	
-	if keyword == "extern" or keyword == "intern" or keyword == "public" or keyword == "private" then
-		getFunctionHeader(nextToken)
-		if isa.functionHeader(keyword) then
-			compileStatement(nextToken)
-		end
-		isa.ret()
-		return true
-	elseif keyword == "constant" then
-		local name = nextToken()
-		name = makeNamespacedName(name)
-		if constants[name] then
-			cerr("constant "..name.." already defined")
-		end
-		requireToken("=", nextToken, "constant is missing equals sign")
-		local value = nextToken()
-		if value:match('^[%a_]') then
-			local canon = makeNamespacedName(value)
-			if constants[canon] then
-				constants[name] = constants[canon]
-			else
-				cerr("constant values must be literals")
-			end
-		elseif value:match('^%d') or value:match('^"') then
-			constants[name] = value
-		else
-			cerr("constant values must be literals")
-		end
-		return true
-	elseif keyword == "namespace" then
-		currentNamespace = nextToken()
-		if currentNamespace == "none" then
-			currentNamespace = ""
-		end
-		return true
-	end
-end
-
-function compile(nextToken)
-	isa.globalStart()
-	while compileDeclaration(nextToken) do end
-	isa.globalEnd()
+	return {
+		['error'] = cerr,
+		['assert'] = assert,
+		['symbol'] = pullSymbol,
+		['keyword'] = pullKeyword,
+		['name'] = pullName,
+		['number'] = pullNumber,
+		['string'] = pullString,
+		['eof'] = function() removeJunk() return #program == 0 end
+	}
 end
 
 main()
