@@ -1,18 +1,25 @@
 # fennec
-Minimalist compiled programming language (WIP).
+Minimalist compiled programming language. Currently a work in progress.
 
 Goals for this project:
-- bootstrapping compiler (fennec compiler written in fennec).
-- compiling to x86, x86-64, arm32, and aarch64
-- simple optimisations only (storing values in registers, inlining functions, etc)
+- bootstrapping compiler (fennec compiler written in fennec)
+- compiling to both 32 bit and 64 bit x86 and arm architectures
+- utilising simple optimisations (storing values in registers, inlining functions, etc)
 
 ## Usage
 
-Run WIP compiler using `lua fennec.lua <filename>`
+While in the project folder, compile and link a fennec program using `<platform>/compile.sh <filename>.fen`.
+Output file will be an executable.
 
-Currently only compiles to x86 32-bit assembly, many features are
+- To compile `test.fen` for 64 bit x86 MacOS, use `macos_x86_64/compile.sh test.fen`
+- To compile `test.fen` for 32 bit x86 Linux, use `linux_x86_32/compile.sh test.fen`
+- More platforms to come
+
+Currently only compiles to limited platforms with limited capability, many features are
 unimplemented, such as type checking and an equivalent to C header files.
 
-Also is currently untested and probably completely broken, so please don't actually use it yet.
+I would recommend against use in serious projects, as of yet.
 
 Also there is no documentation either.
+
+Good luck!
