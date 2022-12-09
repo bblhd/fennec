@@ -70,7 +70,7 @@ ret
 global and
 and:
 	cmp dword [esp+4], 0
-	setz cl
+	setz al
 	dec eax
 	and eax, [esp+8]
 ret
@@ -79,6 +79,28 @@ global or
 or:
 	mov eax, [esp+4]
 	or eax, [esp+8]
+ret
+
+global not
+not:
+	mov eax, [esp+4]
+	setz al
+	dec eax
+ret
+
+global eq
+eq:
+	mov ebx, [esp+4]
+	cmp ebx, [esp+8]
+	setz al
+ret
+
+global ne
+ne:
+	mov ebx, [esp+4]
+	cmp ebx, [esp+8]
+	setz al
+	dec eax
 ret
 
 global lt
@@ -214,10 +236,6 @@ extern main
 global _start
 _start:
 	mov ebp, esp
-	mov eax, [esp]
-	lea ebx, [esp+4]
-	mov [esp], ebx
-	push eax
 	call main
 	mov ebx, eax
 	mov eax, 1

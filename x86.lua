@@ -1,60 +1,80 @@
+local outputTargets = {""}
 
-
-local function getTargetOfVariable(name)
-	for k,v in ipairs(currentFunction.args) do
-		if v == name then
-			return "[ebp+"..tostring(4 * (k+1)).."]"
-		end
-	end
-	for k,v in ipairs(currentFunction.vars) do
-		if v == name then
-			return "[ebp-"..tostring(4*k).."]"
-		end
-	end
-	cerr("undeclared variable '"..name.."'")
+local function open()
+	table.insert(outputTargets, "")
 end
 
-local function as_functionHeader(keyword)
-	if keyword == "extern" then
-		print("extern " .. currentFunction.name)
-		currentFunction = nil
-	elseif keyword == "public" or keyword == "private" then
-		if keyword == "public" then
-			print("global " .. currentFunction.name)
-		end
-		print(currentFunction.name..":")
-		print("push ebp")
-		print("mov ebp, esp")
-		if #currentFunction.vars > 0 then
-			print("sub esp, "..4*#currentFunction.vars)
+local function close(n)
+	n = n or 1
+	while #outputTargets >= 2 and n > 0 do
+		local string = table.remove(outputTargets)
+		outputTargets[#outputTargets] = outputTargets[#outputTargets] .. string
+		n = n - 1
+	end
+end
+
+local function out(string)
+	if #outputTargets >= 1 then
+		outputTargets[#outputTargets] = outputTargets[#outputTargets] .. string .. '\n'
+	else
+		print(string)
+	end
+end
+
+local function flip(n)
+	if #outputTargets >= 1 then
+		n = math.min(#outputTargets, n)
+		for i=1, math.floor(n/2), 1 do
+			local temp = outputTargets[#outputTargets-n+i]
+			outputTargets[#outputTargets-n+i] = outputTargets[#outputTargets-i+1]
+			outputTargets[#outputTargets-i+1] = temp
 		end
 	end
+end
+
+local function finish()
+	local string = table.concat(outputTargets, '')
+	outputTargets = {""}
+	return string
+end
+
+local function as_public(name)
+	out("global " .. name)
+end
+
+local function as_extern(name)
+	out("extern " .. name)
+end
+
+local function as_functionDefinition(name, allocated)
+	out(name..":")
+	out("push ebp")
+	out("mov ebp, esp")
+	if allocated > 0 then
+		out("sub esp, "..4*allocated)
+	end
+end
+
+local function as_vararg_init(named)
+	out("lea eax, [ebp+"..(4*(named+2)).."]")
+	out("mov [ebp-4], eax")
 end
 
 local function as_return()
-	if currentFunction then
-		print("mov esp, ebp")
-		print("pop ebp")
-		print("ret")
-	end
+	out("mov esp, ebp")
+	out("pop ebp")
+	out("ret")
 end
 
-local function as_variableTarget(name)
-	for k,v in ipairs(currentFunction.args) do
-		if v == name then
-			return "[ebp+"..tostring(4 * (k+1)).."]"
-		end
-	end
-	for k,v in ipairs(currentFunction.vars) do
-		if v == name then
-			return "[ebp-"..tostring(4*k).."]"
-		end
-	end
-	error("compiler error: undeclared variable '"..name.."'")
+local function as_variableTarget(variable)
+	local offset = variable.id + (not variable.allocated and 1 or 0)
+	offset = tostring(offset * 4)
+	offset = (variable.allocated and "-" or "+") .. offset
+	return "[ebp"..offset.."]"
 end
 
 local function as_numlit(value)
-	print("mov eax, "..tostring(value))
+	out("mov eax, "..value)
 end
 
 oldstrings = {}
@@ -66,111 +86,116 @@ local function as_stringlit(str)
 		stringnum = stringnum + 1
 		oldstrings[str] = pos
 		
-		print("section .data")
+		out("section .data")
 		local numericalString = ""
 		for i=1, #str do
 			numericalString = numericalString .. tostring(string.byte(str,i)) .. ", "
 		end
 		numericalString = numericalString .. "0"
-		print("_string"..tostring(pos)..": db "..numericalString)
-		print("section .text")
+		out("_string"..tostring(pos)..": db "..numericalString)
+		out("section .text")
 	end
-	print("lea eax, [_string"..tostring(pos).."]")
+	out("lea eax, [_string"..tostring(pos).."]")
 end
 
-local function as_store(dest)
-	print("mov "..getTargetOfVariable(dest)..", eax")
+local function as_store(variable)
+	out("mov "..as_variableTarget(variable)..", eax")
 end
-local function as_load(dest)
-	print("mov eax, "..getTargetOfVariable(dest))
+local function as_load(variable)
+	out("mov eax, "..as_variableTarget(variable))
 end
 
 jumpstack = {}
 jumpnum = 0
 
 local function as_ifthen()
-	print("cmp eax, 0")
-	print("je _jump"..jumpnum)
+	out("cmp eax, 0")
+	out("je _jump"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifelse()
 	local prevjumpnum = table.remove(jumpstack)
-	print("jmp _jump"..jumpnum)
-	print("_jump"..prevjumpnum..":")
+	out("jmp _jump"..jumpnum)
+	out("_jump"..prevjumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifend()
 	local prevjumpnum = table.remove(jumpstack)
-	print("_jump"..prevjumpnum..":")
+	out("_jump"..prevjumpnum..":")
 end
 local function as_whileif()
-	print("_jump"..jumpnum..":")
+	out("_jump"..jumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whiledo()
-	print("cmp eax, 0")
-	print("je _jump"..jumpnum)
+	out("cmp eax, 0")
+	out("je _jump"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whileend()
 	local endjumpnum = table.remove(jumpstack)
 	local returnjumpnum = table.remove(jumpstack)
-	print("jmp _jump"..returnjumpnum)
-	print("_jump"..endjumpnum..":")
+	out("jmp _jump"..returnjumpnum)
+	out("_jump"..endjumpnum..":")
 end
 
-local function as_stack_init()
-	print("push ebp")
-	print("mov ebp, esp")
+local functionArgumentPasses = {}
+local function as_functionCall_init()
+	table.insert(functionArgumentPasses, 0)
 end
-local function as_stack_fini()
-	print("mov esp, ebp")
-	print("pop ebp")
+local function as_functionCall_pass_init()
+	open()
+	functionArgumentPasses[#functionArgumentPasses]
+		= functionArgumentPasses[#functionArgumentPasses] + 1
 end
-
-local function as_functionCall_init(func)
-	print("sub esp, "..functionArgCounts[func]*4)
-end
-local function as_functionCall_pass(func, i)
-	i = (i-1) * 4
-	if i > 0 then
-		print("mov [esp+"..tostring(i).."], eax")
-	elseif i < 0 then
-		print("mov [esp-"..tostring(-i).."], eax")
-	else
-		print("mov [esp], eax")
-	end
+local function as_functionCall_pass_fini()
+	out("push eax")
 end
 local function as_functionCall_fini(func)
-	print("call "..func)
-	print("add esp, "..functionArgCounts[func]*4)
+	flip(functionArgumentPasses[#functionArgumentPasses])
+	close(functionArgumentPasses[#functionArgumentPasses])
+	out("call "..func)
+	if functionArgumentPasses[#functionArgumentPasses] > 0 then
+		out("add esp, "..functionArgumentPasses[#functionArgumentPasses]*4)
+	end
+	return table.remove(functionArgumentPasses)
 end
 
 local function as_functionPointer(name)
-	print("lea eax, "..name)
+	out("lea eax, "..name)
 end
 
-local function as_variablePointer(name)
-	print("lea eax, "..getTargetOfVariable(name))
+local function as_variablePointer(variable)
+	out("lea eax, "..as_variableTarget(variable))
 end
 
-local function as_allocate(name)
-	print("sub esp, eax")
-	print("mov "..getTargetOfVariable(name).. ", esp")
+local function as_allocate(variable)
+	out("sub esp, eax")
+	out("mov "..as_variableTarget(variable).. ", esp")
 end
 
 function as_globalStart()
-	print("section .text")
+	out("section .text")
 end
 
 return {
+	open = open,
+	close = close,
+	flip = flip,
+	finish = finish,
 	globalStart = as_globalStart,
 	globalEnd = function() end,
-	functionHeader = as_functionHeader,
+	
+	functionDefinition = as_functionDefinition,
+	public = as_public,
+	extern = as_extern,
+	functionDefinition = as_functionDefinition,
+	varargs = as_vararg_init,
+	
 	ret = as_return,
 	variableTarget = as_variableTarget,
 	numlit = as_numlit,
@@ -184,9 +209,10 @@ return {
 	whiledo = as_whiledo,
 	whileend = as_whileend,
 	allocate = as_allocate,
-	functionCall_init = as_functionCall_init,
-	functionCall_pass = as_functionCall_pass,
-	functionCall_fini = as_functionCall_fini,
+	call_init = as_functionCall_init,
+	call_fini = as_functionCall_fini,
+	pass_init = as_functionCall_pass_init,
+	pass_fini = as_functionCall_pass_fini,
 	functionPointer = as_functionPointer,
 	variablePointer = as_variablePointer
 }
