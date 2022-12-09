@@ -1,8 +1,8 @@
-currentLine = 1
 variables = {}
 arrays = {}
 functions = {}
 constants = {}
+callingDepth = 0
 
 function main()
 	if not arg[1] or #arg[1] == 0 then
@@ -41,17 +41,19 @@ end
 function statement(tokens)
 	return returnStatement(tokens)
 		or letStatement(tokens)
+		or callingDepth == 0 and allocateStatement(tokens)
 		or ifStatement(tokens)
 		or ifElseStatement(tokens)
 		or whileStatement(tokens)
-		or allocateStatement(tokens)
 		or blockStatement(tokens)
 		or functionCall(tokens)
+		or expressionStatement(tokens)
 		or implicitLet(tokens)
 end
 
 function expression(tokens)
 	return functionCall(tokens)
+		or blockStatement(tokens)
 		or variableGet(tokens)
 		or numericalLiteral(tokens)
 		or stringLiteral(tokens)
@@ -258,6 +260,13 @@ function allocateStatement(tokens)
 	end
 end
 
+function expressionStatement(tokens)
+	if tokens.keyword('then') then
+		tokens.assert(expression(tokens), "invalid expression in 'then' statement")
+		return true
+	end
+end
+
 function blockStatement(tokens)
 	if tokens.symbol('{') then
 		while not tokens.symbol('}') do
@@ -273,6 +282,7 @@ function functionCall(tokens)
 		local name = tokens.name()
 		tokens.assert(functions[name], "attempt to call undeclared function '"..name.."'")
 		
+		callingDepth = callingDepth + 1
 		target.call_init()
 		while not tokens.symbol(')') do
 			target.pass_init()
@@ -282,7 +292,8 @@ function functionCall(tokens)
 		end
 		local passed = target.call_fini(name)
 		tokens.assert(passed >= functions[name].required, "function '"..name.."' called with fewer than the minimum "..functions[name].required.." arguments")
-		
+		callingDepth = callingDepth - 1
+
 		return true
 	end
 end

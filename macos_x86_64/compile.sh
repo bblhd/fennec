@@ -10,5 +10,5 @@ if lua fennec.lua 'macos_x86_64' $FILE_SRC $FILE_ASM; then
 		chmod +x $FILE_DST
 		rm *.o
 	fi
-	# rm $FILE_ASM
+	rm $FILE_ASM
 fi

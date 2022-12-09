@@ -101,25 +101,23 @@ private printi_buffer[64]
 private (printi n base; buffer rem) {
 	buffer := printi_buffer
 	(storeByte buffer 0)
-	buffer := (add buffer 1)
 	
 	while (gte n base) {
 		rem := (mod n base)
 		ifelse (lt rem 10) rem := (add rem 48)
 		else rem := (add rem 55)
-		(storeByte buffer rem)
-		buffer := (add buffer 1)
-		
+		(storeByte {buffer := (add buffer 1)} rem)
+
 		n := (div n base)
 	}
-	
+
 	rem := (mod n base)
 	ifelse (lt rem 10) rem := (add rem 48)
 	else rem := (add rem 55)
-	(storeByte buffer rem)
+	(storeByte {buffer := (add buffer 1)} rem)
 	
 	while (loadByte buffer) {
 		(putc (loadByte buffer))
-		let buffer = (sub buffer 1)
+		buffer := (sub buffer 1)
 	}
 }
