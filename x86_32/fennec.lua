@@ -4,7 +4,7 @@ arrays = {}
 functions = {}
 constants = {}
 
-local target = require "x86"
+local target = require "x86_32/target"
 
 function main()
 	if not arg[1] then
