@@ -4,13 +4,12 @@ arrays = {}
 functions = {}
 constants = {}
 
-target = nil
-
 function main()
 	if not arg[1] or #arg[1] == 0 then
-		error("no target provided")
+		error("no platform provided")
 	end
-	target = require(arg[1])
+	target = require(arg[1]..'/target')
+	-- includes = require(arg[1]..'/includes')
 
 	if not arg[2] or #arg[2] == 0 then
 		error("no file to compile")
@@ -61,7 +60,7 @@ end
 function objectDeclaration(tokens)
 	local keyword = tokens.keyword('extern', 'intern', 'public', 'private')
 	if keyword then
-		return functionHeader(keyword, tokens)
+		return functionHeader(keyword, tokens) or arrayHeader(keyword, tokens)
 	end
 end
 
@@ -111,6 +110,46 @@ function functionHeader(keyword, tokens)
 			tokens.assert(statement(tokens), "definition of function '"..name.."' is invalid")
 			target.numlit('0')
 			target.ret()
+		end
+		return true
+	end
+end
+
+function arrayHeader(keyword, tokens)
+	local name = tokens.name()
+	if name then
+		if keyword == "public" then
+			target.public(name)
+		elseif keyword == "extern" then
+			target.extern(name)
+		end
+
+		local isSized = tokens.symbol("[") and true
+		tokens.assert(isSized or keyword == 'extern' or keyword == 'intern', "array is '"..keyword.."' and does not have a defined size")
+		if not isSized then
+			return true
+		end
+		local size = nil
+
+		while not tokens.symbol("]") do
+			local value
+			value = tokens.number()
+			if value then
+				size = (size or 1) * tonumber(value)
+			else
+				value = tokens.name()
+				tokens.assert(value and constants[value] and constants[value].type=='number', "provided array cardinal for array '"..name.."' isn't a numerical constant")
+				size = (size or 1) * tonumber(constants[value].value)
+				tokens.assert(not tokens.eof(), "encountered EOF in array definition for '"..name.."'")
+			end
+		end
+
+		tokens.assert(size, "size is empty for array definition '"..name.."'")
+
+		arrays[name] = size
+		
+		if keyword == "public" or keyword == "private" then
+			target.arrayDefinition(name, size)
 		end
 		return true
 	end
@@ -252,13 +291,14 @@ end
 function variableGet(tokens)
 	local name = tokens.name()
 	if name then
-		local constant = constants[name]
-		if constant then
-			if constant.type == 'number' then
-				target.numlit(constant.value)
-			elseif constant.type == 'string' then
-				target.stringlit(constant.value)
+		if constants[name] then
+			if constants[name].type == 'number' then
+				target.numlit(constants[name].value)
+			elseif constants[name].type == 'string' then
+				target.stringlit(constants[name].value)
 			end
+		elseif arrays[name] then
+			target.arrayPointer(name)
 		else
 			tokens.assert(variables[name], "variable '"..name.."' does not exist")
 			target.load(variables[name])

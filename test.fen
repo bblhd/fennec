@@ -15,6 +15,8 @@ extern (not x)
 extern (bitwiseOr x y)
 extern (bitwiseAnd x y)
 
+constant WORD_SIZE = 8
+
 extern (storeWord ptr value)
 extern (loadWord ptr)
 extern (storeByte ptr value)
@@ -36,8 +38,6 @@ intern (print string)
 intern (printi number base)
 intern (scan string n)
 intern (printf format argc...)
-
-constant WORD_SIZE = 8
 
 constant O_RDONLY = 0
 constant O_WRONLY = 1
@@ -96,8 +96,10 @@ private (printf format args...) {
 	}
 }
 
+private printi_buffer[64]
+
 private (printi n base; buffer rem) {
-	allocate buffer[16]
+	buffer := printi_buffer
 	(storeByte buffer 0)
 	buffer := (add buffer 1)
 	

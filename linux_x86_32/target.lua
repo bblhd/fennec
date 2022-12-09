@@ -59,6 +59,12 @@ local function as_functionDefinition(name, allocated, vararg_named)
 	end
 end
 
+local function as_arrayDefinition(name, size)
+	out("section .bss")
+	out(name..": resb "..size)
+	out("section .text")
+end
+
 local function as_return()
 	out("mov esp, ebp")
 	out("pop ebp")
@@ -165,7 +171,10 @@ local function as_functionCall_fini(func)
 end
 
 local function as_functionPointer(name)
-	out("lea eax, "..name)
+	out("lea eax, ["..name.."]")
+end
+local function as_arrayPointer(name)
+	out("lea eax, ["..name.."]")
 end
 
 local function as_variablePointer(variable)
@@ -182,9 +191,6 @@ function as_globalStart()
 end
 
 return {
-	open = open,
-	close = close,
-	flip = flip,
 	finish = finish,
 	globalStart = as_globalStart,
 	globalEnd = function() end,
@@ -192,26 +198,29 @@ return {
 	functionDefinition = as_functionDefinition,
 	public = as_public,
 	extern = as_extern,
-	functionDefinition = as_functionDefinition,
-	varargs = as_vararg_init,
+	arrayDefinition = as_arrayDefinition,
 	
-	ret = as_return,
 	variableTarget = as_variableTarget,
 	numlit = as_numlit,
 	stringlit = as_stringlit,
+	arrayPointer = as_arrayPointer,
+	functionPointer = as_functionPointer,
+	variablePointer = as_variablePointer,
+
+	ret = as_return,
+	allocate = as_allocate,
 	store = as_store,
 	load = as_load,
+
 	ifthen = as_ifthen,
 	ifelse = as_ifelse,
 	ifend = as_ifend,
 	whileif = as_whileif,
 	whiledo = as_whiledo,
 	whileend = as_whileend,
-	allocate = as_allocate,
+	
 	call_init = as_functionCall_init,
 	call_fini = as_functionCall_fini,
 	pass_init = as_functionCall_pass_init,
-	pass_fini = as_functionCall_pass_fini,
-	functionPointer = as_functionPointer,
-	variablePointer = as_variablePointer
+	pass_fini = as_functionCall_pass_fini
 }

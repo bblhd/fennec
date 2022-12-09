@@ -59,6 +59,12 @@ local function as_functionDefinition(name, allocated, vararg_named)
 	end
 end
 
+local function as_arrayDefinition(name, size)
+	out("section .bss")
+	out(name..": resb "..size)
+	out("section .text")
+end
+
 local function as_return()
 	out("mov rsp, rbp")
 	out("pop rbp")
@@ -85,14 +91,14 @@ local function as_stringlit(str)
 		stringnum = stringnum + 1
 		oldstrings[str] = pos
 		
-		out("section __DATA,__data")
+		out("section .data")
 		local numericalString = ""
 		for i=1, #str do
 			numericalString = numericalString .. tostring(string.byte(str,i)) .. ", "
 		end
 		numericalString = numericalString .. "0"
 		out("_s"..tostring(pos)..": db "..numericalString)
-		out("section __TEXT,__text")
+		out("section .text")
 	end
 	out("lea rax, qword [_s"..tostring(pos).."]")
 end
@@ -165,7 +171,11 @@ local function as_functionCall_fini(func)
 end
 
 local function as_functionPointer(name)
-	out("lea rax, "..name)
+	out("lea rax, ["..name.."]")
+end
+
+local function as_arrayPointer(name)
+	out("lea rax, ["..name.."]")
 end
 
 local function as_variablePointer(variable)
@@ -179,7 +189,7 @@ end
 
 function as_globalStart()
 	out("default rel")
-	out("section __TEXT,__text")
+	out("section .text")
 end
 
 return {
@@ -190,25 +200,29 @@ return {
 	functionDefinition = as_functionDefinition,
 	public = as_public,
 	extern = as_extern,
-	functionDefinition = as_functionDefinition,
+	arrayDefinition = as_arrayDefinition,
 	
-	ret = as_return,
 	variableTarget = as_variableTarget,
 	numlit = as_numlit,
 	stringlit = as_stringlit,
+	arrayPointer = as_arrayPointer,
+	functionPointer = as_functionPointer,
+	variablePointer = as_variablePointer,
+
+	ret = as_return,
+	allocate = as_allocate,
 	store = as_store,
 	load = as_load,
+
 	ifthen = as_ifthen,
 	ifelse = as_ifelse,
 	ifend = as_ifend,
 	whileif = as_whileif,
 	whiledo = as_whiledo,
 	whileend = as_whileend,
-	allocate = as_allocate,
+
 	call_init = as_functionCall_init,
 	call_fini = as_functionCall_fini,
 	pass_init = as_functionCall_pass_init,
-	pass_fini = as_functionCall_pass_fini,
-	functionPointer = as_functionPointer,
-	variablePointer = as_variablePointer
+	pass_fini = as_functionCall_pass_fini
 }
