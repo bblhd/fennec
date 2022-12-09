@@ -10,7 +10,7 @@ FILE_DST=${1%.*}
 
 if lua fennec.lua $FILE_SRC $FILE_ASM; then
 	nasm -f elf $FILE_ASM
-	#rm $FILE_ASM
+	rm $FILE_ASM
 	ld -nostdlib -o $FILE_DST *.o
 	chmod +x $FILE_DST
 fi

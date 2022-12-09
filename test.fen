@@ -104,10 +104,8 @@ private (printi n base; buffer rem) {
 	
 	while (gte n base) {
 		rem := (mod n base)
-		
 		ifelse (lt rem 10) rem := (add rem 48)
 		else rem := (add rem 55)
-		
 		(storeByte buffer rem)
 		buffer := (add buffer 1)
 		
