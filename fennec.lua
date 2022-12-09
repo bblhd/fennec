@@ -4,15 +4,21 @@ arrays = {}
 functions = {}
 constants = {}
 
-local target = require "x86_32/target"
+target = nil
 
 function main()
-	if not arg[1] then
+	if not arg[1] or #arg[1] == 0 then
+		error("no target provided")
+	end
+	target = require(arg[1])
+
+	if not arg[2] or #arg[2] == 0 then
 		error("no file to compile")
 	end
-	compile(tokeniser(arg[1]))
-	if arg[2] then
-		local file = io.open(arg[2], 'w')
+	compile(tokeniser(arg[2]))
+
+	if arg[3] then
+		local file = io.open(arg[3], 'w')
 		local program = file:write(target.finish())
 		file:close()
 	else
@@ -101,10 +107,7 @@ function functionHeader(keyword, tokens)
 		end
 		
 		if keyword == "public" or keyword == "private" then
-			target.functionDefinition(name, allocatedCount)
-			if vararg then
-				target.varargs(namedArgumentCount)
-			end
+			target.functionDefinition(name, allocatedCount, vararg and namedArgumentCount)
 			tokens.assert(statement(tokens), "definition of function '"..name.."' is invalid")
 			target.numlit('0')
 			target.ret()

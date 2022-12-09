@@ -37,7 +37,7 @@ intern (printi number base)
 intern (scan string n)
 intern (printf format argc...)
 
-constant WORD_SIZE = 4
+constant WORD_SIZE = 8
 
 constant O_RDONLY = 0
 constant O_WRONLY = 1
@@ -47,7 +47,6 @@ constant O_APPEND = 2000
 
 public (main argc argv...) {
 	(printf "Test int: %i\nTest string: \"%s\"\nTest char: '%c'\n" 13 "Hello World!" 67)
-	(exit 0)
 }
 
 private (print string) {

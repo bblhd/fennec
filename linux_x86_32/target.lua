@@ -46,18 +46,17 @@ local function as_extern(name)
 	out("extern " .. name)
 end
 
-local function as_functionDefinition(name, allocated)
+local function as_functionDefinition(name, allocated, vararg_named)
 	out(name..":")
 	out("push ebp")
 	out("mov ebp, esp")
 	if allocated > 0 then
 		out("sub esp, "..4*allocated)
 	end
-end
-
-local function as_vararg_init(named)
-	out("lea eax, [ebp+"..(4*(named+2)).."]")
-	out("mov [ebp-4], eax")
+	if vararg_named then
+		out("lea eax, [ebp+"..(4*(vararg_named+2)).."]")
+		out("mov [ebp-4], eax")
+	end
 end
 
 local function as_return()
@@ -92,10 +91,10 @@ local function as_stringlit(str)
 			numericalString = numericalString .. tostring(string.byte(str,i)) .. ", "
 		end
 		numericalString = numericalString .. "0"
-		out("_string"..tostring(pos)..": db "..numericalString)
+		out("_s"..tostring(pos)..": db "..numericalString)
 		out("section .text")
 	end
-	out("lea eax, [_string"..tostring(pos).."]")
+	out("lea eax, [_s"..tostring(pos).."]")
 end
 
 local function as_store(variable)
@@ -110,36 +109,36 @@ jumpnum = 0
 
 local function as_ifthen()
 	out("cmp eax, 0")
-	out("je _jump"..jumpnum)
+	out("je _j"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifelse()
 	local prevjumpnum = table.remove(jumpstack)
-	out("jmp _jump"..jumpnum)
-	out("_jump"..prevjumpnum..":")
+	out("jmp _j"..jumpnum)
+	out("_j"..prevjumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifend()
 	local prevjumpnum = table.remove(jumpstack)
-	out("_jump"..prevjumpnum..":")
+	out("_j"..prevjumpnum..":")
 end
 local function as_whileif()
-	out("_jump"..jumpnum..":")
+	out("_j"..jumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whiledo()
 	out("cmp eax, 0")
-	out("je _jump"..jumpnum)
+	out("je _j"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whileend()
 	local endjumpnum = table.remove(jumpstack)
 	local returnjumpnum = table.remove(jumpstack)
-	out("jmp _jump"..returnjumpnum)
+	out("jmp _j"..returnjumpnum)
 	out("_jump"..endjumpnum..":")
 end
 
