@@ -1,40 +1,4 @@
-extern (add x y)
-extern (sub x y)
-extern (mul x y)
-extern (div x y)
-extern (mod x y)
-extern (eq x y)
-extern (ne x y)
-extern (lt x y)
-extern (lte x y)
-extern (gt x y)
-extern (gte x y)
-extern (or x y)
-extern (and x y)
-extern (not x)
-extern (bitwiseOr x y)
-extern (bitwiseAnd x y)
-
-constant _16BIT_WORD_SIZE = 2
-constant _32BIT_WORD_SIZE = 4
-constant _64BIT_WORD_SIZE = 8
-constant WORD_SIZE = _64BIT_WORD_SIZE // CHANGE/CHECK THIS BEFORE COMPILING ON A NEW ARCHITECTURE
-
-extern (storeWord ptr value)
-extern (loadWord ptr)
-extern (storeByte ptr value)
-extern (loadByte ptr)
-
-extern (putc char)
-extern (putn string length)
-extern (getc)
-
-extern (exit code)
-
-extern (open path flags)
-extern (close fd)
-extern (read fd buffer length)
-extern (write fd buffer length)
+include "stdlib"
 
 intern (strlen string)
 intern (print string)
@@ -42,12 +6,12 @@ intern (printi number base)
 intern (scan string n)
 intern (printf format argc...)
 
-constant O_RDONLY = 0
-constant O_WRONLY = 1
-constant O_RDWR = 2
-
 public (main argc argv...; name) {
-	(printf "Test int: %i\nTest string: \"%s\"\nTest char: '%c'\n" 13 "Hello World!" 67)
+	(printf "Test int: %i\nTest string: \"%s\"\nTest char: '%c'\n"
+		13
+		"Hello World!"
+		0x43
+	)
 	(printf "Please enter your name: ")
 	allocate name[64]
 	(scan name 64)

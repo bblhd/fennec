@@ -1,28 +1,76 @@
-variables = {}
+directIncludes = {}
+indirectIncludes = {}
+
+constants = {}
 arrays = {}
 functions = {}
-constants = {}
+variables = {}
+
 callingDepth = 0
 
+target = nil
+
+function fileExists(name)
+   local f=io.open(name,"r")
+   if f~=nil then io.close(f) return true else return false end
+end
+
+function findIndirectInclude(include)
+	for dir in ipairs(indirectIncludes) do
+		if fileExists(dir..include..'.fen') then
+			return dir..include..'.fen'
+		end
+	end
+end
+
+function basicAssert(cond, msg)
+	return not cond and error(msg) or true
+end
+
 function main()
-	if not arg[1] or #arg[1] == 0 then
-		error("no platform provided")
-	end
-	target = require(arg[1]..'/target')
-	-- includes = require(arg[1]..'/includes')
+	local platform = nil
+	local infile = nil
+	local outfile = nil
 
-	if not arg[2] or #arg[2] == 0 then
-		error("no file to compile")
-	end
-	compile(tokeniser(arg[2]))
+	local argi = 1
+	while argi <= #arg do
+		if arg[argi] == '-i' then
+			basicAssert(argi+1 <= #arg, "-i <infile>: empty field infile")
+			basicAssert(not infile, "-i <infile>: empty field infile")
+			infile = arg[argi+1]
+		elseif arg[argi] == '-o' then
+			basicAssert(argi+1 <= #arg, "-o <outfile>: empty field outfile")
+			basicAssert(not outfile, "-o <outfile>: outfile already given")
+			outfile = arg[argi+1]
+		elseif arg[argi] == '-l' then
+			basicAssert(argi+1 <= #arg, "-l <directory>: empty field directory")
+			table.insert(indirectIncludes, arg[argi+1])
+		elseif arg[argi] == '-L' then
+			basicAssert(argi+1 <= #arg, "-L <conversion>: empty field conversion")
+			local key,value = arg[argi+1]:match('^([^=]+)=([^=]+)$')
+			basicAssert(key and value, "-L <conversion>: conversion invalid")
+			directIncludes[key] = value
+		elseif arg[argi] == '-p' then
+			basicAssert(argi+1 <= #arg, "-p <platform>: empty field platform")
+			basicAssert(not platform, "-p <platform>: platform already given")
+			platform = arg[argi+1]
+		end
 
-	if arg[3] then
-		local file = io.open(arg[3], 'w')
-		local program = file:write(target.finish())
-		file:close()
-	else
-		print(target.finish())
+		if arg[argi]:match('-[ioplL]') then
+			argi = argi + 2
+		else
+			error(arg[argi]..": invalid tag")
+		end
 	end
+
+	basicAssert(platform, "no platform provided")
+	basicAssert(infile, "no infile provided")
+	basicAssert(outfile, "no outfile provided")
+
+	target = require(platform..'/target')
+
+	compile(tokeniser(infile))
+	target.finish(outfile)
 end
 
 function compile(tokens)
@@ -36,6 +84,7 @@ end
 function declaration(tokens)
 	return objectDeclaration(tokens)
 		or constantDeclaration(tokens)
+		or compilerDeclaration(tokens)
 end
 
 function statement(tokens)
@@ -177,6 +226,21 @@ function constantDeclaration(tokens)
 	end
 end
 
+function compilerDeclaration(tokens)
+	if tokens.keyword('include') then
+		local include = tokens.string()
+		tokens.assert(include, "'include' is missing library name")
+		local library = directIncludes[include] or findIndirectInclude(include) or include
+		tokens.assert(library, "'"..include.."' is not a valid library")
+
+		compile(tokeniser(library))
+		return true
+	elseif tokens.keyword('link') then
+		tokens.assert(tokens.string(), "'link' is missing library name")
+		return true
+	end
+end
+
 function returnStatement(tokens)
 	if tokens.keyword('return') then
 		tokens.assert(expression(tokens), "invalid expression in 'return'")
@@ -293,7 +357,7 @@ function functionCall(tokens)
 		local passed = target.call_fini(name)
 		tokens.assert(
 			passed == functions[name].required or functions[name].moreAllowed and passed > functions[name].required,
-			"function '"..name.."' called with wrong number of arguments, should be "..(functions[name].moreAllowed and 'at least ' or '')..functions[name].required.." arguments"
+			"function '"..name.."' called with wrong number of arguments, should be "..(functions[name].moreAllowed and "at least " or "")..functions[name].required.." arguments"
 		)
 		callingDepth = callingDepth - 1
 

@@ -32,10 +32,21 @@ local function flip(n)
 	end
 end
 
-local function finish()
+local function finish(outfile)
 	local string = table.concat(outputTargets, '')
 	outputTargets = {""}
-	return string
+
+	local asm_path = os.tmpname()
+
+	local file = io.open(asm_path, 'w')
+	file:write(string)
+	file:close()
+
+	if not os.execute("nasm -f elf "..asm_path.." -o "..outfile) then
+		error("fennec compiler error: could not assemble final object file")
+	end
+
+	os.remove(asm_path)
 end
 
 local function as_public(name)
@@ -54,7 +65,7 @@ local function as_functionDefinition(name, allocated, vararg_named)
 		out("sub esp, "..4*allocated)
 	end
 	if vararg_named then
-		out("lea eax, [ebp+"..(4*(vararg_named+2)).."]")
+		out("lea eax, [ebp+"..(4*vararg_named+8).."]")
 		out("mov [ebp-4], eax")
 	end
 end
