@@ -196,11 +196,13 @@ ret
 
 global getc
 getc:
+	push 0
 	mov rax, 0x2000003
 	mov rdi, 0
-	lea rsi, [rsp+8]
+	lea rsi, [rsp]
 	mov rdx, 1
 	syscall
+	pop rax
 ret
 
 global putc
