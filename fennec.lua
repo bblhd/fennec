@@ -99,7 +99,7 @@ function functionHeader(keyword, tokens)
 			end
 		end
 		
-		functions[name] = {required = namedArgumentCount}
+		functions[name] = {required = namedArgumentCount, moreAllowed = vararg}
 		
 		if keyword == "public" then
 			target.public(name)
@@ -160,7 +160,7 @@ end
 function constantDeclaration(tokens)
 	if tokens.keyword('constant') then
 		local name = tokens.name()
-		tokens.assert(name, "constant name '"..name.."' is invalid")
+		tokens.assert(name, "constant name is invalid")
 		tokens.assert(not constants[name], "constant "..name.." already defined")
 		tokens.assert(tokens.symbol('='), "'constant' is missing equals sign")
 		
@@ -291,7 +291,10 @@ function functionCall(tokens)
 			target.pass_fini()
 		end
 		local passed = target.call_fini(name)
-		tokens.assert(passed >= functions[name].required, "function '"..name.."' called with fewer than the minimum "..functions[name].required.." arguments")
+		tokens.assert(
+			passed == functions[name].required or functions[name].moreAllowed and passed > functions[name].required,
+			"function '"..name.."' called with wrong number of arguments, should be "..(functions[name].moreAllowed and 'at least ' or '')..functions[name].required.." arguments"
+		)
 		callingDepth = callingDepth - 1
 
 		return true
