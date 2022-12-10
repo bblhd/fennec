@@ -14,7 +14,7 @@ For example, to compile `test.fen` for 64 bit x86 Linux, use `./linux_x86_64/com
 
 While it may seem as though they support cross compiling, the linking scripts currently just use the resident `ld` command, which will attempt to link for your system. This is an issue that will be fixed in the future.
 
-Platforms available currently are `linux_x86_32`, `linux_x86_64`, and `macos_x86_64`. More will be added in future.
+Available platforms are `linux_x86_32`, `linux_x86_64`, and `macos_x86_64`. More will be added in future.
 
 Currently only compiles to x86 and isn't properly cross-platform, even on supported platforms.
 Type checking is currently unimplemented and some syntax isn't finalised, especially arrays and memory allocation.
