@@ -43,6 +43,7 @@ local function finish(outfile)
 	file:close()
 
 	if not os.execute("nasm -f elf "..asm_path.." -o "..outfile) then
+		os.remove(asm_path)
 		error("fennec compiler error: could not assemble final object file")
 	end
 
@@ -156,7 +157,7 @@ local function as_whileend()
 	local endjumpnum = table.remove(jumpstack)
 	local returnjumpnum = table.remove(jumpstack)
 	out("jmp _j"..returnjumpnum)
-	out("_jump"..endjumpnum..":")
+	out("_j"..endjumpnum..":")
 end
 
 local functionArgumentPasses = {}

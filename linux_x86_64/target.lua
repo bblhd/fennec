@@ -43,6 +43,7 @@ local function finish(outfile)
 	file:close()
 
 	if not os.execute("nasm -f elf64 "..asm_path.." -o "..outfile) then
+		os.remove(asm_path)
 		error("fennec compiler error: could not assemble final object file")
 	end
 
