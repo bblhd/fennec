@@ -12,7 +12,7 @@ While in the project folder, compile and link a fennec program using `<platform>
 Output file will be an executable.
 For example, to compile `test.fen` for 64 bit x86 Linux, use `linux_x86_64/compile.sh test.fen`
 
-Platforms available so far are `linux_x86_32`, `linux_x86_64`, and `macos_x86_64`. More will be added in future.
+Platforms available currently are `linux_x86_32`, `linux_x86_64`, and `macos_x86_64`. More will be added in future.
 
 Currently only compiles to limited platforms with limited capability, many features are
 unimplemented, such as type checking and an equivalent to C header files.
