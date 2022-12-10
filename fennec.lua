@@ -35,28 +35,27 @@ function main()
 	local argi = 1
 	while argi <= #arg do
 		if arg[argi] == '-i' then
-			basicAssert(argi+1 <= #arg, "-i <infile>: empty field infile")
-			basicAssert(not infile, "-i <infile>: empty field infile")
+			basicAssert(argi+1 <= #arg or arg[argi+1]:match('^%-'), "-i <infile>: empty field infile")
+			basicAssert(not infile, "-i <infile>: infile already given")
 			infile = arg[argi+1]
 		elseif arg[argi] == '-o' then
-			basicAssert(argi+1 <= #arg, "-o <outfile>: empty field outfile")
+			basicAssert(argi+1 <= #arg or arg[argi+1]:match('^%-'), "-o <outfile>: empty field outfile")
 			basicAssert(not outfile, "-o <outfile>: outfile already given")
 			outfile = arg[argi+1]
 		elseif arg[argi] == '-l' then
-			basicAssert(argi+1 <= #arg, "-l <directory>: empty field directory")
+			basicAssert(argi+1 <= #arg or arg[argi+1]:match('^%-'), "-l <directory>: empty field directory")
 			table.insert(indirectIncludes, arg[argi+1])
 		elseif arg[argi] == '-L' then
-			basicAssert(argi+1 <= #arg, "-L <conversion>: empty field conversion")
+			basicAssert(argi+1 <= #arg or arg[argi+1]:match('^%-'), "-L <conversion>: empty field conversion")
 			local key,value = arg[argi+1]:match('^([^=]+)=([^=]+)$')
 			basicAssert(key and value, "-L <conversion>: conversion invalid")
 			directIncludes[key] = value
 		elseif arg[argi] == '-p' then
-			basicAssert(argi+1 <= #arg, "-p <platform>: empty field platform")
+			basicAssert(argi+1 <= #arg or arg[argi+1]:match('^%-'), "-p <platform>: empty field platform")
 			basicAssert(not platform, "-p <platform>: platform already given")
 			platform = arg[argi+1]
 		end
-
-		if arg[argi]:match('-[ioplL]') then
+		if arg[argi]:match('^%-[ioplL]$') then
 			argi = argi + 2
 		else
 			error(arg[argi]..": invalid tag")
