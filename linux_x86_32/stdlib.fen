@@ -14,6 +14,8 @@ extern (gte x y)
 extern (or x y)
 extern (and x y)
 extern (not x)
+extern (lsl x y)
+extern (lsr x y)
 extern (bitwiseOr x y)
 extern (bitwiseAnd x y)
 

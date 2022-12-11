@@ -1,0 +1,7 @@
+include "stdlib"
+include "nonstdio"
+
+public (main argc argv...) {
+	(printf "Hello World!\n")
+	return 0
+}

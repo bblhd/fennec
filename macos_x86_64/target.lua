@@ -50,6 +50,13 @@ local function finish(outfile)
 	os.remove(asm_path)
 end
 
+local function as_variableTarget(variable)
+	local offset = variable.id + (not variable.allocated and 1 or 0)
+	offset = tostring(offset * 8)
+	offset = (variable.allocated and "-" or "+") .. offset
+	return "[rbp"..offset.."]"
+end
+
 local function as_public(name)
 	out("global " .. name)
 end
@@ -66,7 +73,7 @@ local function as_functionDefinition(name, allocated, vararg_named)
 		out("sub rsp, "..8*allocated)
 	end
 	if vararg_named then
-		out("lea rax, [rsp+"..(8*vararg_named+24).."]")
+		out("lea rax, "..as_variableTarget({allocated=false, id=vararg_named+1}))
 		out("mov [rbp-8], rax")
 	end
 end
@@ -81,13 +88,6 @@ local function as_return()
 	out("mov rsp, rbp")
 	out("pop rbp")
 	out("ret")
-end
-
-local function as_variableTarget(variable)
-	local offset = variable.id + (not variable.allocated and 1 or 0)
-	offset = tostring(offset * 8)
-	offset = (variable.allocated and "-" or "+") .. offset
-	return "[rbp"..offset.."]"
 end
 
 local function as_numlit(value)

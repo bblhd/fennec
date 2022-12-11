@@ -55,6 +55,20 @@ imod:
 	mov eax, edx
 ret
 
+global lsr
+lsr:
+	mov eax, [esp+4]
+	mov cl, [esp+8]
+	shr eax, cl
+ret
+
+global lsl
+lsl:
+	mov eax, [esp+4]
+	mov cl, [esp+8]
+	shl eax, cl
+ret
+
 global bitwiseAnd
 bitwiseAnd:
 	mov eax, [esp+4]

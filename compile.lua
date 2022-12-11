@@ -1,5 +1,6 @@
 directIncludes = {}
 indirectIncludes = {}
+alreadyIncluded = {}
 
 constants = {}
 arrays = {}
@@ -16,7 +17,7 @@ function fileExists(name)
 end
 
 function findIndirectInclude(include)
-	for dir in ipairs(indirectIncludes) do
+	for _,dir in ipairs(indirectIncludes) do
 		if fileExists(dir..include..'.fen') then
 			return dir..include..'.fen'
 		end
@@ -229,10 +230,15 @@ function compilerDeclaration(tokens)
 	if tokens.keyword('include') then
 		local include = tokens.string()
 		tokens.assert(include, "'include' is missing library name")
-		local library = directIncludes[include] or findIndirectInclude(include) or include
-		tokens.assert(library, "'"..include.."' is not a valid library")
+		
+		if not alreadyIncluded[include] then
+			local library = directIncludes[include] or findIndirectInclude(include)
+			tokens.assert(library, "'"..include.."' is not a valid library ")
 
-		compile(tokeniser(library))
+			alreadyIncluded[include] = library
+			compile(tokeniser(library))
+		end
+
 		return true
 	elseif tokens.keyword('link') then
 		tokens.assert(tokens.string(), "'link' is missing library name")

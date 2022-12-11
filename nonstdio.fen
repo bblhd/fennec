@@ -1,23 +1,8 @@
-include "stdlib"
-
 intern (strlen string)
 intern (print string)
 intern (printi number base)
 intern (scan string n)
 intern (printf format argc...)
-
-public (main argc argv...; name) {
-	(printf "Test int: %i\nTest string: \"%s\"\nTest char: '%c'\n"
-		13
-		"Hello World!"
-		0x43
-	)
-	(printf "Please enter your name: ")
-	allocate name[64]
-	(scan name 64)
-	(printf "Hello and welcome to fennec, %s!\n" name)
-	return 0
-}
 
 private (strlenUntil char string; len) {
 	len := 0
@@ -39,7 +24,7 @@ private (print string) {
 	return (putn string (strlen string))
 }
 
-private printi_buffer[64]
+private printi_buffer[32]
 
 private (printi n base; buffer rem) {
 	buffer := printi_buffer

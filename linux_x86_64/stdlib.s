@@ -55,6 +55,18 @@ imod:
 	mov rax, rdx
 ret
 
+global lsr
+lsr:
+	mov rax, [rsp+8]
+	shr rax, [rsp+16]
+ret
+
+global lsl
+lsl:
+	mov rax, [rsp+8]
+	shl rax, [rsp+16]
+ret
+
 global bitwiseAnd
 bitwiseAnd:
 	mov rax, [rsp+8]
