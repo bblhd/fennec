@@ -1,3 +1,5 @@
+include "stdlib"
+
 intern (strlen string)
 intern (print string)
 intern (printi number base)
