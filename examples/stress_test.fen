@@ -15,7 +15,7 @@ public (main argc argv...; name answer) {
 	(scan name 32)
 	(printf "Hello and welcome to fennec, %s!\n" name)
 
-	ifelse (gt argc 1) {
+	if (gt argc 1) {
 		(printf "I was given %i arguments.\n" (sub argc 1))
 		(printf "The first argument I was given was '%s'.\n" (loadWord (add argv WORD_SIZE)))
 	} else {
@@ -26,7 +26,7 @@ public (main argc argv...; name answer) {
 	allocate answer[WORD_SIZE]
 	(scan answer WORD_SIZE)
 
-	ifelse (ne 'y' (loadByte answer)) {
+	if (ne 'y' (loadByte answer)) {
 		(printf "Not printing hexdump.\n")
 	} else {
 		(printf "Printing hexdump for file %s!\n" (loadWord argv))
@@ -55,8 +55,8 @@ private (printHexdump path; fd loaded buffer) {
 
 private (printHexNBytes buffer n) {
 	while (gt n 0) {
-		(putc (loadByte (add (bitwiseAnd (loadByte buffer) 0xf) "0123456789abcdef")))
 		(putc (loadByte (add (lsr (loadByte buffer) 4) "0123456789abcdef")))
+		(putc (loadByte (add (bitwiseAnd (loadByte buffer) 0xf) "0123456789abcdef")))
 		(putc ' ')
 
 		buffer := (add buffer 1)
@@ -66,7 +66,7 @@ private (printHexNBytes buffer n) {
 
 private (printCharNBytes buffer n) {
 	while (gt n 0) {
-		ifelse (and (gte (loadByte buffer) 32) (lt (loadByte buffer) 127)) {
+		if (and (gte (loadByte buffer) 32) (lt (loadByte buffer) 127)) {
 			(putc (loadByte buffer))
 		} else {
 			(putc ' ')

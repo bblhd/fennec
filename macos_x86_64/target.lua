@@ -44,8 +44,6 @@ local function finish(outfile)
 		.. (output.text and "section .text\n" .. table.concat(output.text, '') or "")
 	output = {}
 
-	print(string)
-
 	local asm_path = os.tmpname()
 
 	local file = io.open(asm_path, 'w')
