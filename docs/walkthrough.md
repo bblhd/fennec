@@ -4,7 +4,7 @@ This document attempts to describe Fennec syntax in plain english, starting from
 
 ### Terminology
 
-- Declarations are syntax constructions that can only be used at the root level. They can have effects on any other part of the program. These are includes, links, and function, array, and constant definitions.
+- Declarations are syntax constructions that can only be used at the root level. They can have effects on any other part of the program. These are includes, links, arrays, function definitions, and constant definitions.
 - Statements are used within functions to represent imperitive actions (ie. operations with side effects) and control flow operations (loops and conditionals). They can be sequenced together and can also be embedded within expressions using block expressions.
 - Expressions are operations that give a value, which can be either passed to functions, or to statements that can use them.
 
