@@ -89,21 +89,21 @@ function declaration(tokens)
 end
 
 function statement(tokens)
-	return returnStatement(tokens)
+	return blockStatement(tokens)
+		or returnStatement(tokens)
 		or letStatement(tokens)
 		or callingDepth == 0 and allocateStatement(tokens)
 		or ifStatement(tokens)
-		or ifElseStatement(tokens)
 		or whileStatement(tokens)
-		or blockStatement(tokens)
 		or functionCall(tokens)
-		or expressionStatement(tokens)
 		or implicitLet(tokens)
+		or numericalLiteral(tokens)
+		or stringLiteral(tokens)
 end
 
 function expression(tokens)
-	return functionCall(tokens)
-		or blockStatement(tokens)
+	return blockStatement(tokens)
+		or functionCall(tokens)
 		or variableGet(tokens)
 		or numericalLiteral(tokens)
 		or stringLiteral(tokens)
@@ -230,7 +230,11 @@ end
 function compilerDeclaration(tokens)
 	if tokens.keyword('include') then
 		local include = tokens.string()
-		tokens.assert(include, "'include' is missing library name")
+		if not include then
+			local name = tokens.name()
+			tokens.assert(name and constants[name] and constants[name].type == 'string', "'include' is missing library name")
+			include = constants[name].value
+		end
 		
 		if not alreadyIncluded[include] then
 			local library = directIncludes[include] or findIndirectInclude(include)
@@ -242,7 +246,11 @@ function compilerDeclaration(tokens)
 
 		return true
 	elseif tokens.keyword('link') then
-		tokens.assert(tokens.string(), "'link' is missing library name")
+		local link = tokens.string()
+		if not link then
+			local name = tokens.name()
+			tokens.assert(name and constants[name] and constants[name].type == 'string', "'link' is missing library name")
+		end
 		return true
 	end
 end
@@ -272,12 +280,26 @@ function implicitLet(tokens)
 	end
 	local name = tokens.name()
 	if name then
-		tokens.assert(name, "implicit 'let' destination name invalid")
-		tokens.assert(variables[name], "implicit 'let' destination variable '"..name.."' undefined")
-		tokens.assert(tokens.symbol(':='), "implicit 'let' missing ':=' after variable")
-		tokens.assert(expression(tokens), "invalid expression in implicicit 'let' assignment")
-		target.store(variables[name])
-		return true
+		if tokens.symbol(':=') then
+			tokens.assert(variables[name], "implicit 'let' destination variable '"..name.."' undefined")
+			tokens.assert(expression(tokens), "invalid expression in implicicit 'let' assignment")
+			target.store(variables[name])
+			return true
+		else
+			if constants[name] then
+				if constants[name].type == 'number' then
+					target.numlit(constants[name].value)
+				elseif constants[name].type == 'string' then
+					target.stringlit(constants[name].value)
+				end
+			elseif arrays[name] then
+				target.arrayPointer(name)
+			else
+				tokens.assert(variables[name], "variable '"..name.."' does not exist")
+				target.load(variables[name])
+			end
+			return true
+		end
 	end
 end
 
@@ -286,19 +308,10 @@ function ifStatement(tokens)
 		tokens.assert(expression(tokens), "invalid expression in 'if' condition")
 		target.ifthen()
 		tokens.assert(statement(tokens), "invalid statement in 'if' body")
-		target.ifend()
-		return true
-	end
-end
-
-function ifElseStatement(tokens)
-	if tokens.keyword('ifelse') then
-		tokens.assert(expression(tokens), "invalid expression in 'ifelse' condition")
-		target.ifthen()
-		tokens.assert(statement(tokens), "invalid statement in 'ifelse' body")
-		tokens.assert(tokens.keyword('else'), "'ifelse' missing else")
-		target.ifelse()
-		tokens.assert(statement(tokens), "invalid statement in 'ifelse' else clause")
+		if tokens.keyword('else') then
+			target.ifelse()
+			tokens.assert(statement(tokens), "invalid statement in 'if' else clause")
+		end
 		target.ifend()
 		return true
 	end
@@ -484,7 +497,7 @@ function tokeniser(path)
 		elseif program:match("^'.'") then
 			token = tostring(string.byte(program, 2))
 			program = program:sub(4)
-		elseif program:match('^0x[0-9a-f]') then
+		elseif program:match('^0x[0-9a-fA-F]') then
 			token, program = program:match("^0x([0-9a-f]+)(.*)$")
 			token = tostring(tonumber(token, 16))
 		elseif program:match('^0b[01]') then

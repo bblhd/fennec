@@ -124,7 +124,7 @@ global lt
 lt:
 	mov rax, [rsp+8]
 	sub rax, [rsp+16]
-	shr rax, 31
+	shr rax, 63
 ret
 
 global lte
@@ -132,14 +132,14 @@ lte:
 	mov rax, [rsp+8]
 	sub rax, [rsp+16]
 	dec rax
-	shr rax, 31
+	shr rax, 63
 ret
 
 global gt
 gt:
 	mov rax, [rsp+16]
 	sub rax, [rsp+8]
-	shr rax, 31
+	shr rax, 63
 ret
 
 global gte
@@ -147,7 +147,7 @@ gte:
 	mov rax, [rsp+16]
 	sub rax, [rsp+8]
 	dec rax
-	shr rax, 31
+	shr rax, 63
 ret
 
 global storeByte

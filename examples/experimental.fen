@@ -1,0 +1,10 @@
+include "stdlib"
+include "nonstdio"
+
+public (main argc argv...) {
+	(printf
+		{if (lte argc 1) "Hello World!\n" else "Hello Argument %s!\n"}
+		{if (gt argc 1) (loadWord (add argv WORD_SIZE))}
+	)
+	return 0
+}

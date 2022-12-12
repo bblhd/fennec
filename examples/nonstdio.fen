@@ -34,14 +34,14 @@ private (printi n base; buffer rem) {
 	
 	while (gte n base) {
 		rem := (mod n base)
-		ifelse (lt rem 10) rem := (add rem 48)
+		if (lt rem 10) rem := (add rem 48)
 		else rem := (add rem 55)
 		(storeByte {buffer := (add buffer 1)} rem)
 		n := (div n base)
 	}
 
 	rem := (mod n base)
-	ifelse (lt rem 10) rem := (add rem 48)
+	if (lt rem 10) rem := (add rem 48)
 	else rem := (add rem 55)
 	(storeByte {buffer := (add buffer 1)} rem)
 	
@@ -69,13 +69,13 @@ private (printf format args...) {
 		if (eq (loadByte format) '%') {
 			format := (add format 1)
 			
-			ifelse (eq (loadByte format) 's') {
+			if (eq (loadByte format) 's') {
 				(print (loadWord args))
 				args := (add args WORD_SIZE)
-			} else ifelse (eq (loadByte format) 'i') {
+			} else if (eq (loadByte format) 'i') {
 				(printi (loadWord args) 10)
 				args := (add args WORD_SIZE)
-			} else ifelse (eq (loadByte format) 'c') {
+			} else if (eq (loadByte format) 'c') {
 				(putc (loadWord args))
 				args := (add args WORD_SIZE)
 			} else {
