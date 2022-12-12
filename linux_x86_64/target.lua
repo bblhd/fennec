@@ -50,7 +50,7 @@ local function finish(outfile)
 	file:write(string)
 	file:close()
 
-	if not os.execute("nasm -f macho64 "..asm_path.." -o "..outfile) then
+	if not os.execute("nasm -f elf64 "..asm_path.." -o "..outfile) then
 		os.remove(asm_path)
 		error("fennec compiler error: could not assemble final object file")
 	end
@@ -110,7 +110,8 @@ oldstrings = {}
 stringnum = 0
 
 local function as_stringlit(str)
-	if not oldstrings[str] then
+	local pos = oldstrings[str]
+	if not pos then
 		pos = stringnum
 		stringnum = stringnum + 1
 		oldstrings[str] = pos

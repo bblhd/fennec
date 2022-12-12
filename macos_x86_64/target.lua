@@ -110,7 +110,8 @@ oldstrings = {}
 stringnum = 0
 
 local function as_stringlit(str)
-	if not oldstrings[str] then
+	local pos = oldstrings[str]
+	if not pos then
 		pos = stringnum
 		stringnum = stringnum + 1
 		oldstrings[str] = pos

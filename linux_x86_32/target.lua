@@ -72,106 +72,103 @@ local function as_variableTarget(variable)
 end
 
 local function as_public(name)
-	out("global " .. name)
+	init("global " .. name)
 end
 
 local function as_extern(name)
-	out("extern " .. name)
+	init("extern " .. name)
 end
 
 local function as_functionDefinition(name, allocated, vararg_named)
-	out(name..":")
-	out("push ebp")
-	out("mov ebp, esp")
+	text(name..":")
+	text("push ebp")
+	text("mov ebp, esp")
 	if allocated > 0 then
-		out("sub esp, "..4*allocated)
+		text("sub esp, "..4*allocated)
 	end
 	if vararg_named then
-		out("lea eax, "..as_variableTarget({allocated=false, id=vararg_named+1}))
-		out("mov [ebp-4], eax")
+		text("lea eax, "..as_variableTarget({allocated=false, id=vararg_named+1}))
+		text("mov [ebp-4], eax")
 	end
 end
 
 local function as_arrayDefinition(name, size)
-	out("section .bss")
-	out(name..": resb "..size)
-	out("section .text")
+	bss(name..": resb "..size)
 end
 
 local function as_return()
-	out("mov esp, ebp")
-	out("pop ebp")
-	out("ret")
+	text("mov esp, ebp")
+	text("pop ebp")
+	text("ret")
 end
 
 local function as_numlit(value)
-	out("mov eax, "..value)
+	text("mov eax, "..value)
 end
 
 oldstrings = {}
 stringnum = 0
 
 local function as_stringlit(str)
-	if not oldstrings[str] then
+	local pos = oldstrings[str]
+	if not pos then
 		pos = stringnum
 		stringnum = stringnum + 1
 		oldstrings[str] = pos
 		
-		out("section .data")
 		local numericalString = ""
 		for i=1, #str do
 			numericalString = numericalString .. tostring(string.byte(str,i)) .. ", "
 		end
 		numericalString = numericalString .. "0"
-		out("_s"..tostring(pos)..": db "..numericalString)
-		out("section .text")
+		data("_s"..tostring(pos)..": db "..numericalString)
 	end
-	out("lea eax, [_s"..tostring(pos).."]")
+	text("lea eax, [_s"..tostring(pos).."]")
 end
 
 local function as_store(variable)
-	out("mov "..as_variableTarget(variable)..", eax")
+	text("mov "..as_variableTarget(variable)..", eax")
 end
 local function as_load(variable)
-	out("mov eax, "..as_variableTarget(variable))
+	text("mov eax, "..as_variableTarget(variable))
 end
 
 jumpstack = {}
 jumpnum = 0
 
 local function as_ifthen()
-	out("cmp eax, 0")
-	out("je _j"..jumpnum)
+	text("cmp eax, 0")
+	text("je _j"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifelse()
 	local prevjumpnum = table.remove(jumpstack)
-	out("jmp _j"..jumpnum)
-	out("_j"..prevjumpnum..":")
+	text("jmp _j"..jumpnum)
+	text("_j"..prevjumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_ifend()
 	local prevjumpnum = table.remove(jumpstack)
-	out("_j"..prevjumpnum..":")
+	text("_j"..prevjumpnum..":")
 end
 local function as_whileif()
-	out("_j"..jumpnum..":")
+	text("_j"..jumpnum..":")
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whiledo()
-	out("cmp eax, 0")
-	out("je _j"..jumpnum)
+	text("cmp eax, 0")
+	text("je _j"..jumpnum)
 	table.insert(jumpstack, jumpnum)
 	jumpnum = jumpnum + 1
 end
 local function as_whileend()
 	local endjumpnum = table.remove(jumpstack)
 	local returnjumpnum = table.remove(jumpstack)
-	out("jmp _j"..returnjumpnum)
-	out("_j"..endjumpnum..":")
+	text("jmp _j"..returnjumpnum)
+	text("_j"..endjumpnum..":")
 end
 
 local functionArgumentPasses = {}
@@ -180,7 +177,7 @@ local function as_functionCall_init()
 	flip_start()
 end
 local function as_functionCall_pass()
-	out("mov [esp"..offsetString(functionArgumentPasses[#functionArgumentPasses]-1).."], eax")
+	text("mov [esp"..offsetString(functionArgumentPasses[#functionArgumentPasses]).."], eax")
 
 	functionArgumentPasses[#functionArgumentPasses]
 		= functionArgumentPasses[#functionArgumentPasses] + 1
@@ -188,30 +185,30 @@ end
 local function as_functionCall_fini(func)
 	flip_switch()
 	if functionArgumentPasses[#functionArgumentPasses] > 0 then
-		out("sub esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
+		text("sub esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end
 	flip_end()
-	out("call "..func)
+	text("call "..func)
 	if functionArgumentPasses[#functionArgumentPasses] > 0 then
-		out("add esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
+		text("add esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end
 	return table.remove(functionArgumentPasses)
 end
 
 local function as_functionPointer(name)
-	out("lea eax, ["..name.."]")
+	text("lea eax, ["..name.."]")
 end
 local function as_arrayPointer(name)
-	out("lea eax, ["..name.."]")
+	text("lea eax, ["..name.."]")
 end
 
 local function as_variablePointer(variable)
-	out("lea eax, "..as_variableTarget(variable))
+	text("lea eax, "..as_variableTarget(variable))
 end
 
 local function as_allocate(variable)
-	out("sub esp, eax")
-	out("mov "..as_variableTarget(variable).. ", esp")
+	text("sub esp, eax")
+	text("mov "..as_variableTarget(variable).. ", esp")
 end
 
 return {
