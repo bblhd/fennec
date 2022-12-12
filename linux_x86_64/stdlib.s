@@ -58,13 +58,15 @@ ret
 global lsr
 lsr:
 	mov rax, [rsp+8]
-	shr rax, [rsp+16]
+	mov cl, [rsp+16]
+	shr rax, cl
 ret
 
 global lsl
 lsl:
 	mov rax, [rsp+8]
-	shl rax, [rsp+16]
+	mov cl, [rsp+16]
+	shl rax, cl
 ret
 
 global bitwiseAnd
