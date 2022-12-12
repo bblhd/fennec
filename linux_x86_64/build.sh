@@ -5,14 +5,18 @@ if [ ! -f $1 ]; then
 	exit
 fi
 
-FILE_SRC=$1
-FILE_OBJ=${1%.*}.o
-FILE_DST=${1%.*}
+NAME=$1
+NAME=${NAME##*/}
+NAME=${NAME%.*}
 
-if lua compile.lua -i $FILE_SRC -o $FILE_OBJ -L 'stdlib=linux_x86_64/stdlib.fen' -l './' -p 'linux_x86_64'; then
+FILE_SRC="$1"
+FILE_OBJ="$NAME.o"
+FILE_DST="bin/$NAME"
+
+if lua compile.lua -i $FILE_SRC -o $FILE_OBJ -L 'stdlib=linux_x86_64/stdlib.fen' -l './examples' -p 'linux_x86_64'; then
 	mkdir -p bin
 	nasm -f elf64 linux_x86_64/stdlib.s -o stdlib.o
-	ld -nostdlib -o bin/$FILE_DST *.o
-	chmod +x bin/$FILE_DST
+	ld -nostdlib -o $FILE_DST *.o
+	chmod +x $FILE_DST
 	rm *.o
 fi

@@ -21,6 +21,9 @@ function findIndirectInclude(include)
 		if fileExists(dir..include..'.fen') then
 			return dir..include..'.fen'
 		end
+		if fileExists(dir..'/'..include..'.fen') then
+			return dir..'/'..include..'.fen'
+		end
 	end
 end
 
