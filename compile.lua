@@ -74,11 +74,9 @@ function main()
 end
 
 function compile(tokens)
-	target.globalStart()
 	while not tokens.eof() do
 		tokens.assert(declaration(tokens), 'invalid declaration')
 	end
-	target.globalEnd()
 end
 
 function declaration(tokens)
@@ -354,10 +352,9 @@ function functionCall(tokens)
 		callingDepth = callingDepth + 1
 		target.call_init()
 		while not tokens.symbol(')') do
-			target.pass_init()
 			tokens.assert(expression(tokens), "invalid expression in call of "..name)
 			tokens.assert(not tokens.eof(), "encountered EOF in function call for "..name)
-			target.pass_fini()
+			target.pass()
 		end
 		local passed = target.call_fini(name)
 		tokens.assert(

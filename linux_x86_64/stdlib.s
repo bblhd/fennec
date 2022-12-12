@@ -82,6 +82,7 @@ ret
 global and
 and:
 	cmp dword [rsp+8], 0
+	mov rax, 0
 	setz al
 	dec rax
 	and rax, [rsp+16]
@@ -95,22 +96,24 @@ ret
 
 global not
 not:
-	mov rax, [rsp+8]
+	cmp dword [rsp+8], 0
+	mov rax, 0
 	setz al
-	dec rax
 ret
 
 global eq
 eq:
-	mov rbx, [rsp+8]
-	cmp rbx, [rsp+16]
+	mov rax, [rsp+8]
+	cmp rax, [rsp+16]
+	mov rax, 0
 	setz al
 ret
 
 global ne
 ne:
-	mov rbx, [rsp+8]
-	cmp rbx, [rsp+16]
+	mov rax, [rsp+8]
+	cmp rax, [rsp+16]
+	mov rax, 0
 	setz al
 	dec rax
 ret
@@ -247,6 +250,6 @@ global _start
 _start:
 	mov rbp, rsp
 	call main
-	mov rbx, rax
+	mov rdi, rax
 	mov rax, 60
 	syscall

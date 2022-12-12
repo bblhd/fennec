@@ -1,7 +1,5 @@
 include "stdlib"
-include "nonstdio"
 
 public (main argc argv...) {
-	(print "Hello World!\n")
 	return 0
 }

@@ -84,6 +84,7 @@ ret
 global and
 and:
 	cmp dword [esp+4], 0
+	mov eax, 0
 	setz al
 	dec eax
 	and eax, [esp+8]
@@ -97,22 +98,24 @@ ret
 
 global not
 not:
-	mov eax, [esp+4]
+	cmp dword [esp+4], 0
+	mov eax, 0
 	setz al
-	dec eax
 ret
 
 global eq
 eq:
-	mov ebx, [esp+4]
-	cmp ebx, [esp+8]
+	mov eax, [esp+4]
+	cmp eax, [esp+8]
+	mov eax, 0
 	setz al
 ret
 
 global ne
 ne:
-	mov ebx, [esp+4]
-	cmp ebx, [esp+8]
+	mov eax, [esp+4]
+	cmp eax, [esp+8]
+	mov eax, 0
 	setz al
 	dec eax
 ret

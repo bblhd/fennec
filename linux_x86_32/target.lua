@@ -1,40 +1,48 @@
-local outputTargets = {""}
+local output = {}
 
-local function open()
-	table.insert(outputTargets, "")
+local function flip_start()
+	if not output.text or #output.text < 1 then
+		output.text = {""}
+	end
+	table.insert(output.text, "")
 end
 
-local function close(n)
-	n = n or 1
-	while #outputTargets >= 2 and n > 0 do
-		local string = table.remove(outputTargets)
-		outputTargets[#outputTargets] = outputTargets[#outputTargets] .. string
-		n = n - 1
+local function flip_switch()
+	if output.text and #output.text >= 2 then
+		table.insert(output.text, "")
 	end
 end
 
-local function out(string)
-	if #outputTargets >= 1 then
-		outputTargets[#outputTargets] = outputTargets[#outputTargets] .. string .. '\n'
-	else
-		print(string)
+local function flip_end()
+	if output.text and #output.text >= 3 then
+		local string = table.remove(output.text) .. table.remove(output.text)
+		output.text[#output.text] = output.text[#output.text] .. string
 	end
 end
 
-local function flip(n)
-	if #outputTargets >= 1 then
-		n = math.min(#outputTargets, n)
-		for i=1, math.floor(n/2), 1 do
-			local temp = outputTargets[#outputTargets-n+i]
-			outputTargets[#outputTargets-n+i] = outputTargets[#outputTargets-i+1]
-			outputTargets[#outputTargets-i+1] = temp
-		end
-	end
+local function init(string)
+	if not output.init then output.init = "" end
+	output.init = output.init .. string .. '\n'
+end
+local function bss(string)
+	if not output.bss then output.bss = "" end
+	output.bss = output.bss .. string .. '\n'
+end
+local function data(string)
+	if not output.data then output.data = "" end
+	output.data = output.data .. string .. '\n'
+end
+local function text(string)
+	if not output.text or #output.text < 1 then output.text = {""} end
+	output.text[#output.text] = output.text[#output.text] .. string .. '\n'
 end
 
 local function finish(outfile)
-	local string = table.concat(outputTargets, '')
-	outputTargets = {""}
+	local string = (output.init or "")
+		.. (output.bss and ("section .bss\n" .. output.bss) or "")
+		.. (output.data and ("section .data\n" .. output.data) or "")
+		.. (output.text and "section .text\n" .. table.concat(output.text, '') or "")
+	output = {}
 
 	local asm_path = os.tmpname()
 
@@ -50,11 +58,17 @@ local function finish(outfile)
 	os.remove(asm_path)
 end
 
+local function offsetString(amount, positiveBias, negativeBias)
+	local amount = 4 * (amount + (amount>0 and (positiveBias or 0) or -(negativeBias or 0)))
+	if amount == 0 then
+		return ''
+	else
+		return (amount>0 and '+' or '-') .. tostring(amount>0 and amount or -amount)
+	end
+end
+
 local function as_variableTarget(variable)
-	local offset = variable.id + (not variable.allocated and 1 or 0)
-	offset = tostring(offset * 4)
-	offset = (variable.allocated and "-" or "+") .. offset
-	return "[ebp"..offset.."]"
+	return "[ebp"..offsetString(variable.allocated and -variable.id or variable.id, 1).."]"
 end
 
 local function as_public(name)
@@ -163,21 +177,23 @@ end
 local functionArgumentPasses = {}
 local function as_functionCall_init()
 	table.insert(functionArgumentPasses, 0)
+	flip_start()
 end
-local function as_functionCall_pass_init()
-	open()
+local function as_functionCall_pass()
+	out("mov [esp"..offsetString(functionArgumentPasses[#functionArgumentPasses]-1).."], eax")
+
 	functionArgumentPasses[#functionArgumentPasses]
 		= functionArgumentPasses[#functionArgumentPasses] + 1
 end
-local function as_functionCall_pass_fini()
-	out("push eax")
-end
 local function as_functionCall_fini(func)
-	flip(functionArgumentPasses[#functionArgumentPasses])
-	close(functionArgumentPasses[#functionArgumentPasses])
+	flip_switch()
+	if functionArgumentPasses[#functionArgumentPasses] > 0 then
+		out("sub esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
+	end
+	flip_end()
 	out("call "..func)
 	if functionArgumentPasses[#functionArgumentPasses] > 0 then
-		out("add esp, "..functionArgumentPasses[#functionArgumentPasses]*4)
+		out("add esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end
 	return table.remove(functionArgumentPasses)
 end
@@ -198,14 +214,8 @@ local function as_allocate(variable)
 	out("mov "..as_variableTarget(variable).. ", esp")
 end
 
-function as_globalStart()
-	out("section .text")
-end
-
 return {
 	finish = finish,
-	globalStart = as_globalStart,
-	globalEnd = function() end,
 	
 	functionDefinition = as_functionDefinition,
 	public = as_public,
@@ -233,6 +243,5 @@ return {
 	
 	call_init = as_functionCall_init,
 	call_fini = as_functionCall_fini,
-	pass_init = as_functionCall_pass_init,
-	pass_fini = as_functionCall_pass_fini
+	pass = as_functionCall_pass
 }

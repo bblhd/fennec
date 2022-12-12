@@ -65,6 +65,7 @@ private (scan buffer n; char) {
 private (printf format args...) {
 	while (loadByte format) {
 		format := (add format (putn format (strlenUntil '%' format)))
+		
 		if (eq (loadByte format) '%') {
 			format := (add format 1)
 			
