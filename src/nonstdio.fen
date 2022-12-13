@@ -29,26 +29,21 @@ private (print string) {
 private printi_buffer[32]
 
 private (printi n base; buffer rem) {
-	buffer := printi_buffer
-	(storeByte buffer 0)
+	buffer := (add printi_buffer 32)
+	(storeByte {buffer := (sub buffer 1)} 0)
 	
-	while (gte n base) {
+	while (gt n 0) {
 		rem := (mod n base)
-		if (lt rem 10) rem := (add rem 48)
-		else rem := (add rem 55)
-		(storeByte {buffer := (add buffer 1)} rem)
+		rem := (add rem {if (lt rem 10) 48 else 55})
+		
+		if (gt buffer printi_buffer) {
+			(storeByte {buffer := (sub buffer 1)} rem)
+		}
+		
 		n := (div n base)
 	}
-
-	rem := (mod n base)
-	if (lt rem 10) rem := (add rem 48)
-	else rem := (add rem 55)
-	(storeByte {buffer := (add buffer 1)} rem)
 	
-	while (loadByte buffer) {
-		(syscall SYS_WRITE 1 buffer 1)
-		buffer := (sub buffer 1)
-	}
+	(syscall SYS_WRITE 1 buffer (sub (add printi_buffer 32) buffer))
 }
 
 private (scan buffer n; char) {

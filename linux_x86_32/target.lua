@@ -43,6 +43,12 @@ local function finish(outfile)
 		.. (output.data and ("section .data\n" .. output.data) or "")
 		.. (output.text and "section .text\n" .. table.concat(output.text, '') or "")
 	output = {}
+	
+	local line = 1
+	for l in string:gmatch("[^\n]+") do
+		print(line, l)
+		line = line + 1
+	end
 
 	local asm_path = os.tmpname()
 
@@ -217,23 +223,23 @@ local builtins = {
 		text("mov ax, [ebx]")
 	end},
 	['load32'] = {required = 1, moreAllowed = false, f=function(n)
-		text("mov rbx, [esp]")
+		text("mov ebx, [esp]")
 		text("mov eax, [ebx]")
 	end},
 
 	['store8'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov ebx, [esp]")
-		text("mov al, [esp+8]")
+		text("mov al, [esp+4]")
 		text("mov [ebx], al")
 	end},
 	['store16'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov ebx, [esp]")
-		text("mov ax, [esp+8]")
+		text("mov ax, [esp+4]")
 		text("mov [ebx], ax")
 	end},
 	['store32'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov ebx, [esp]")
-		text("mov eax, [esp+8]")
+		text("mov eax, [esp+4]")
 		text("mov [ebx], eax")
 	end},
 }
@@ -271,7 +277,7 @@ local function as_functionDefinition(name, allocated, vararg_named)
 end
 
 local function as_arrayDefinition(name, size)
-	bss(name..": alignb 8, resb "..size)
+	bss(name..": alignb 4, resb "..size)
 end
 
 local function as_return()

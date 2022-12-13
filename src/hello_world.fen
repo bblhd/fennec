@@ -1,6 +1,8 @@
 include "nonstdio"
 
+intern (printi2thesquequal n)
+
 public (main argc argv...) {
-	(print "Hello World!\n")
+	(print "Hello World!")
 	return 0
 }
