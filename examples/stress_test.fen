@@ -40,24 +40,24 @@ intern (printHexNBytes buffer n)
 intern (printCharNBytes buffer n)
 
 private (printHexdump path; fd loaded buffer) {
-	fd := (open path O_RDONLY)
+	fd := (syscall SYS_OPEN path O_RDONLY)
 
 	allocate buffer[16]
-	while {loaded := (read fd buffer 16)} {
+	while {loaded := (syscall SYS_READ fd buffer 16)} {
 		(printHexNBytes buffer loaded)
-		(putn "    " 4)
+		(print "    ")
 		(printCharNBytes buffer loaded)
-		(putc '\n')
+		(print "\n")
 	}
 
-	(close fd)
+	(syscall SYS_CLOSE fd)
 }
 
 private (printHexNBytes buffer n) {
 	while (gt n 0) {
-		(putc (loadByte (add (lsr (loadByte buffer) 4) "0123456789abcdef")))
-		(putc (loadByte (add (bitwiseAnd (loadByte buffer) 0xf) "0123456789abcdef")))
-		(putc ' ')
+		(syscall SYS_WRITE 1 (add (lsr (loadByte buffer) 4) "0123456789abcdef") 1)
+		(syscall SYS_WRITE 1 (add (band (loadByte buffer) 0xf) "0123456789abcdef") 1)
+		(print " ")
 
 		buffer := (add buffer 1)
 		n := (sub n 1)
@@ -67,9 +67,9 @@ private (printHexNBytes buffer n) {
 private (printCharNBytes buffer n) {
 	while (gt n 0) {
 		if (and (gte (loadByte buffer) 32) (lt (loadByte buffer) 127)) {
-			(putc (loadByte buffer))
+			(syscall SYS_WRITE 1 buffer 1)
 		} else {
-			(putc ' ')
+			(print " ")
 		}
 		
 		buffer := (add buffer 1)

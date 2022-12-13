@@ -67,6 +67,139 @@ local function offsetString(amount, positiveBias, negativeBias)
 	end
 end
 
+local builtin_evals = {
+	["add"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do text("add eax, [esp"..offsetString(i).."]") end
+	end,
+	["sub"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do text("sub eax, [esp"..offsetString(i).."]") end
+	end,
+	["mul"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do text("mul dword [esp"..offsetString(i).."]") end
+	end,
+	["div"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do
+			text("mov edx, 0")
+			text("div dword [esp"..offsetString(i).."]")
+		end
+	end,
+	["idiv"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do
+			text("cqo")
+			text("idiv dword [esp"..offsetString(i).."]")
+		end
+	end,
+	["mod"] = function(n)
+		text("mov eax, [esp]")
+		text("mov edx, 0")
+		text("div dword [esp"..offsetString(1).."]")
+		text("mov eax, edx")
+	end,
+	["imod"] = function(n)
+		text("mov eax, [esp]")
+		text("cqo")
+		text("idiv dword [esp"..offsetString(1).."]")
+		text("mov eax, edx")
+	end,
+	["eq"] = function(n)
+		text("xor eax, eax")
+		text("mov ebx, [esp]")
+		text("cmp ebx, [esp"..offsetString(1).."]")
+		text("setz al")
+	end,
+	["ne"] = function(n)
+		text("mov eax, [esp]")
+		text("xor eax, [esp"..offsetString(1).."]")
+	end,
+	["lt"] = function(n)
+		text("xor eax, eax")
+		text("mov ebx, [esp]")
+		text("inc ebx")
+		text("cmp ebx, [esp"..offsetString(1).."]")
+		text("setle al")
+	end,
+	["lte"] = function(n)
+		text("xor eax, eax")
+		text("mov ebx, [esp]")
+		text("cmp ebx, [esp"..offsetString(1).."]")
+		text("setle al")
+	end,
+	["gt"] = function(n)
+		text("xor eax, eax")
+		text("mov ebx, [esp"..offsetString(1).."]")
+		text("inc ebx")
+		text("cmp ebx, [esp]")
+		text("setle al")
+	end,
+	["gte"] = function(n)
+		text("xor eax, eax")
+		text("mov ebx, [esp"..offsetString(1).."]")
+		text("cmp ebx, [esp]")
+		text("setle al")
+	end,
+	["not"] = function(n)
+		text("xor eax, eax")
+		text("cmp [esp], 0")
+		text("setz al")
+		text("xor eax, 1")
+	end,
+	["and"] = function(n)
+		text("cmp qword [esp], 0")
+		text("mov eax, 0")
+		text("setz al")
+		text("dec eax")
+		if n > 2 then
+			for i=2,n-1 do
+				text("test eax, [esp"..offsetString(i-1).."]")
+				text("mov eax, 0")
+				text("setz al")
+				text("dec eax")
+			end
+		end
+		text("and eax, [esp"..offsetString(n-1).."]")
+	end,
+	["or"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do text("of eax, [esp"..offsetString(i).."]") end
+	end,
+	["band"] = function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do text("and eax, [esp"..offsetString(i).."]") end
+	end,
+	["bnot"] = function(n)
+		text("mov eax, [esp]")
+		text("not eax")
+	end,
+	["lsr"] = function(n)
+		text("mov eax, [esp]")
+		text("mov cl, [esp"..offsetString(1).."]")
+		text("shr eax, cl")
+	end,
+	["lsl"] = function(n)
+		text("mov eax, [esp]")
+		text("mov cl, [esp"..offsetString(1).."]")
+		text("shl eax, cl")
+	end,
+	["asr"] = function(n)
+		text("mov eax, [esp]")
+		text("mov cl, [esp"..offsetString(1).."]")
+		text("sar eax, cl")
+	end,
+	["syscall"] = function(n)
+		text("mov eax, [esp]")
+		local registers = {"ebx", "ecx", "edx", "esi", "edi"}
+		for i=1,n-1 do
+			text("mov "..registers[i]..", [esp"..offsetString(i).."]")
+		end
+		text("int 80h")
+	end
+}
+
 local function as_variableTarget(variable)
 	return "[ebp"..offsetString(variable.allocated and -variable.id or variable.id, 1).."]"
 end
@@ -188,7 +321,11 @@ local function as_functionCall_fini(func)
 		text("sub esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end
 	flip_end()
-	text("call "..func)
+	if builtin_evals[func] then
+		builtin_evals[func](functionArgumentPasses[#functionArgumentPasses])
+	else
+		text("call "..func)
+	end
 	if functionArgumentPasses[#functionArgumentPasses] > 0 then
 		text("add esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end

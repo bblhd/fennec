@@ -11,6 +11,35 @@ callingDepth = 0
 
 target = nil
 
+builtins = {
+	['add'] = {required = 2, moreAllowed = true},
+	['sub'] = {required = 2, moreAllowed = true},
+	['neg'] = {required = 1, moreAllowed = false},
+	['mul'] = {required = 2, moreAllowed = true},
+	['div'] = {required = 2, moreAllowed = true},
+	['idiv'] = {required = 2, moreAllowed = true},
+	['mod'] = {required = 2, moreAllowed = false},
+	['imod'] = {required = 2, moreAllowed = false},
+
+	['eq'] = {required = 2, moreAllowed = false},
+	['ne'] = {required = 2, moreAllowed = false},
+	['lt'] = {required = 2, moreAllowed = false},
+	['lte'] = {required = 2, moreAllowed = false},
+	['gt'] = {required = 2, moreAllowed = false},
+	['gte'] = {required = 2, moreAllowed = false},
+	['not'] = {required = 1, moreAllowed = false},
+	['and'] = {required = 2, moreAllowed = true},
+	['or'] = {required = 2, moreAllowed = true},
+
+	['bnot'] = {required = 2, moreAllowed = true},
+	['band'] = {required = 2, moreAllowed = true},
+	['lsl'] = {required = 2, moreAllowed = false},
+	['lsr'] = {required = 2, moreAllowed = false},
+	['asr'] = {required = 2, moreAllowed = false},
+
+	['syscall'] = {required = 1, moreAllowed = true},
+}
+
 function fileExists(name)
    local f=io.open(name,"r")
    if f~=nil then io.close(f) return true else return false end
@@ -120,6 +149,10 @@ function functionHeader(keyword, tokens)
 	if tokens.symbol("(") then
 		local name = tokens.name()
 		tokens.assert(name, "function name invalid")
+		tokens.assert(not builtins[name], "attempt to redefine builtin '"..name.."' as a function")
+		tokens.assert(not constants[name], "attempt to redefine constant '"..name.."' as a function")
+		tokens.assert(not functions[name] or not functions[name].defined, "attempt to redefine function '"..name.."' as a new function")
+		tokens.assert(not arrays[name], "attempt to redefine array '"..name.."' as a function")
 		
 		variables = {}
 		local namedArgumentCount, allocatedCount = 0,0
@@ -149,7 +182,7 @@ function functionHeader(keyword, tokens)
 			end
 		end
 		
-		functions[name] = {required = namedArgumentCount, moreAllowed = vararg}
+		functions[name] = {required = namedArgumentCount, moreAllowed = vararg, defined=(keyword=='private' or keyword=='public')}
 		
 		if keyword == "public" then
 			target.public(name)
@@ -170,6 +203,11 @@ end
 function arrayHeader(keyword, tokens)
 	local name = tokens.name()
 	if name then
+		tokens.assert(not builtins[name], "attempt to reuse builtin '"..name.."' as an array")
+		tokens.assert(not constants[name], "attempt to redefine constant '"..name.."' as an array")
+		tokens.assert(not functions[name], "attempt to redefine function '"..name.."' as an array")
+		tokens.assert(not arrays[name], "attempt to redefine array '"..name.."' as a new array")
+
 		if keyword == "public" then
 			target.public(name)
 		elseif keyword == "extern" then
@@ -211,7 +249,10 @@ function constantDeclaration(tokens)
 	if tokens.keyword('constant') then
 		local name = tokens.name()
 		tokens.assert(name, "constant name is invalid")
-		tokens.assert(not constants[name], "constant "..name.." already defined")
+		tokens.assert(not builtins[name], "attempt to redefine builtin '"..name.."' as a constant")
+		tokens.assert(not constants[name], "attempt to redefine constant '"..name.."' as a new constant")
+		tokens.assert(not functions[name], "attempt to redefine function '"..name.."' as a constant")
+		tokens.assert(not arrays[name], "attempt to redefine array '"..name.."' as a constant")
 		tokens.assert(tokens.symbol('='), "'constant' is missing equals sign")
 		
 		local value
@@ -363,7 +404,7 @@ end
 function functionCall(tokens)
 	if tokens.symbol('(') then
 		local name = tokens.name()
-		tokens.assert(functions[name], "attempt to call undeclared function '"..name.."'")
+		tokens.assert(functions[name] or builtins[name], "attempt to call undeclared function '"..name.."'")
 		
 		callingDepth = callingDepth + 1
 		target.call_init()
@@ -373,9 +414,10 @@ function functionCall(tokens)
 			target.pass()
 		end
 		local passed = target.call_fini(name)
+		local func = builtins[name] or functions[name]
 		tokens.assert(
-			passed == functions[name].required or functions[name].moreAllowed and passed > functions[name].required,
-			"function '"..name.."' called with wrong number of arguments, should be "..(functions[name].moreAllowed and "at least " or "")..functions[name].required.." arguments"
+			passed == func.required or func.moreAllowed and passed > func.required,
+			"function '"..name.."' called with wrong number of arguments, should be "..(func.moreAllowed and "at least " or "")..func.required.." arguments"
 		)
 		callingDepth = callingDepth - 1
 
