@@ -226,7 +226,7 @@ local function as_functionDefinition(name, allocated, vararg_named)
 end
 
 local function as_arrayDefinition(name, size)
-	bss(name..": resb "..size)
+	bss(name..": alignb 8, resb "..size)
 end
 
 local function as_return()
@@ -345,6 +345,9 @@ end
 
 local function as_allocate(variable)
 	text("sub esp, eax")
+	text("not esp")
+	text("or esp, 0x1F")
+	text("not esp")
 	text("mov "..as_variableTarget(variable).. ", esp")
 end
 
