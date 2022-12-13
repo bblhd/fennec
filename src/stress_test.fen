@@ -4,7 +4,7 @@ include "nonstdio"
 intern (printHexdump path)
 
 public (main argc argv...; name answer) {
-	(printf "Test int: %i\nTest string: \"%s\"\nTest char: '%c'\n"
+	(printf "Test int: %u\nTest string: \"%s\"\nTest char: '%c'\n"
 		13
 		"Hello World!"
 		0x43
@@ -16,7 +16,7 @@ public (main argc argv...; name answer) {
 	(printf "Hello and welcome to fennec, %s!\n" name)
 
 	if (gt argc 1) {
-		(printf "I was given %i arguments.\n" (sub argc 1))
+		(printf "I was given %u arguments.\n" (sub argc 1))
 		(printf "The first argument I was given was '%s'.\n" (loadWord (add argv WORD_SIZE)))
 	} else {
 		(printf "Nothing was passed to me as an argument. :(\n")

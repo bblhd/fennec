@@ -72,9 +72,9 @@ functionCall = "(" name (expression)* ")"
 
 name = [a-zA-Z_][a-zA-Z0-9_]*
 
-number = [0-9]+
-    | "0x" [0-9a-fA-F]+
-    | "0b" [01]+
+number = "-"? [0-9]+
+    | "-"? "0x" [0-9a-fA-F]+
+    |  "-"? "0b" [01]+
     | "'" (ANY | BACKSLASH ANY) "'"
 
 string = '"' (ANY - '"' | BACKSLASH ANY)* '"'

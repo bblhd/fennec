@@ -291,7 +291,12 @@ local function as_return()
 end
 
 local function as_numlit(value)
-	text("mov rax, "..value)
+	if value >= 0 then
+		text("mov rax, "..value)
+	else
+		text("mov rax, "..(-value))
+		text("neg rax")
+	end
 end
 
 oldstrings = {}

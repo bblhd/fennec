@@ -205,11 +205,19 @@ local builtins = {
 
 	['syscall'] = {required = 1, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
-		local registers = {"ebx", "ecx", "edx", "esi", "edi"}
+		local registers = {"ebx", "ecx", "edx", "esi", "edi", "ebp"}
 		for i=1,n-1 do
-			text("mov "..registers[i]..", [esp"..offsetString(i).."]")
+			if i+1 == 7 then
+				text("push ebp")
+				text("mov ebp, [esp"..offsetString(i+1).."]")
+			else
+				text("mov "..registers[i]..", [esp"..offsetString(i).."]")
+			end
 		end
 		text("int 80h")
+		if n == 7 then
+			text("pop ebp")
+		end
 	end},
 
 	['load8'] = {required = 1, moreAllowed = false, f=function(n)
@@ -287,7 +295,12 @@ local function as_return()
 end
 
 local function as_numlit(value)
-	text("mov eax, "..value)
+	if value >= 0 then
+		text("mov eax, "..value)
+	else
+		text("mov eax, "..(-value))
+		text("neg eax")
+	end
 end
 
 oldstrings = {}

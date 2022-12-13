@@ -1,20 +1,20 @@
-constant SYS_EXIT = 1
+constant SYS_EXIT = 0x2000001
 
 
-constant SYS_READ = 3
-constant SYS_WRITE = 4
+constant SYS_READ = 0x2000003
+constant SYS_WRITE = 0x2000004
 
 
-constant SYS_OPEN = 5
-constant SYS_CLOSE = 6
+constant SYS_OPEN = 0x2000005
+constant SYS_CLOSE = 0x2000006
 
 constant O_RDONLY = 0
 constant O_WRONLY = 1
 constant O_RDWR = 2
 
 
-constant SYS_MMAP = 192
-constant SYS_MUNMAP = 91
+constant SYS_MMAP = 0x20000C5
+constant SYS_MUNMAP = 0x2000049
 
 constant PROT_NONE = 0
 constant PROT_READ = 1

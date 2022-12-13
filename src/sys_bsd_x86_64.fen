@@ -1,9 +1,0 @@
-constant O_RDONLY = 0
-constant O_WRONLY = 1
-constant O_RDWR = 2
-
-constant SYS_EXIT = 0x2000001
-constant SYS_READ = 0x2000003
-constant SYS_WRITE = 0x2000004
-constant SYS_OPEN = 0x2000005
-constant SYS_CLOSE = 0x2000006

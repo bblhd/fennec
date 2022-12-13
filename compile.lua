@@ -166,7 +166,7 @@ function functionHeader(keyword, tokens)
 		if keyword == "public" or keyword == "private" then
 			target.functionDefinition(name, allocatedCount, vararg and namedArgumentCount)
 			tokens.assert(statement(tokens), "definition of function '"..name.."' is invalid")
-			target.numlit('0')
+			target.numlit(0)
 			target.ret()
 		end
 		return true
@@ -507,19 +507,29 @@ function tokeniser(path)
 		removeJunk()
 		local token = nil
 		if program:match("^'\\.'") then
-			token = tostring(escapes[program:sub(3,3)] or string.byte(program,3))
+			token = escapes[program:sub(3,3)] or string.byte(program,3)
 			program = program:sub(5)
 		elseif program:match("^'.'") then
-			token = tostring(string.byte(program, 2))
+			token = string.byte(program, 2)
 			program = program:sub(4)
 		elseif program:match('^0x[0-9a-fA-F]') then
-			token, program = program:match("^0x([0-9a-f]+)(.*)$")
-			token = tostring(tonumber(token, 16))
+			token, program = program:match("^0x([0-9a-fA-F]+)(.*)$")
+			token = tonumber(token, 16)
 		elseif program:match('^0b[01]') then
 			token, program = program:match("^0b([01]+)(.*)$")
-			token = tostring(tonumber(token, 2))
+			token = tonumber(token, 2)
 		elseif program:match('^[0-9]') then
 			token, program = program:match("^([0-9]+)(.*)$")
+			token = tonumber(token)
+		elseif program:match('^%-0x[0-9a-fA-F]') then
+			token, program = program:match("^%-0x([0-9a-fA-F]+)(.*)$")
+			token = -tonumber(token, 16)
+		elseif program:match('^%-0b[01]') then
+			token, program = program:match("^%-0b([01]+)(.*)$")
+			token = -tonumber(token, 2)
+		elseif program:match('^%-[0-9]') then
+			token, program = program:match("^%-([0-9]+)(.*)$")
+			token = -tonumber(token)
 		end
 		return token
 	end
