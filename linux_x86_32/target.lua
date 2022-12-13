@@ -149,7 +149,7 @@ local builtin_evals = {
 		text("xor eax, 1")
 	end,
 	["and"] = function(n)
-		text("cmp qword [esp], 0")
+		text("cmp dword [esp], 0")
 		text("mov eax, 0")
 		text("setz al")
 		text("dec eax")

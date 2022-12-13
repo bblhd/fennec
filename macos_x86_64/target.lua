@@ -44,12 +44,6 @@ local function finish(outfile)
 		.. (output.text and "section .text\n" .. table.concat(output.text, '') or "")
 	output = {}
 
-	local line = 0
-	for w in string:gmatch('[^\n]+') do
-		line = line + 1
-		print(line, w)
-	end
-
 	local asm_path = os.tmpname()
 
 	local file = io.open(asm_path, 'w')
