@@ -1,5 +1,0 @@
-include "stdlib"
-
-public (main argc argv...) {
-	return 0
-}

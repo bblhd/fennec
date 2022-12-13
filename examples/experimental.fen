@@ -1,6 +1,0 @@
-include "stdlib"
-include "nonstdio"
-
-public (main argc argv...) {
-	return (eq '%' '%')
-}
