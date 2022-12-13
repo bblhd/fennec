@@ -1,4 +1,4 @@
-include "stdlib"
+include "system"
 include "nonstdio"
 
 intern (printHexdump path)
@@ -44,9 +44,13 @@ private (printHexdump path; fd loaded buffer) {
 
 	allocate buffer[16]
 	while {loaded := (syscall SYS_READ fd buffer 16)} {
-		(printHexNBytes buffer loaded)
-		(print "    ")
-		(printCharNBytes buffer loaded)
+		while (lt loaded 16) {
+			(storeByte (add buffer loaded) 0)
+			loaded := (add loaded 1)
+		}
+		(printHexNBytes buffer 16)
+		(print "   ")
+		(printCharNBytes buffer 16)
 		(print "\n")
 	}
 

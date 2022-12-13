@@ -1,4 +1,4 @@
-include "stdlib"
+include "system"
 
 intern (strlen string)
 intern (print string)

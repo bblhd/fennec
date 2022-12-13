@@ -67,88 +67,93 @@ local function offsetString(amount, positiveBias, negativeBias)
 	end
 end
 
-local builtin_evals = {
-	["add"] = function(n)
+local builtins = {
+	['add'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
 		for i=1,n-1 do text("add eax, [esp"..offsetString(i).."]") end
-	end,
-	["sub"] = function(n)
+	end},
+	['sub'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
 		for i=1,n-1 do text("sub eax, [esp"..offsetString(i).."]") end
-	end,
-	["mul"] = function(n)
+	end},
+	['neg'] = {required = 1, moreAllowed = false, f=function(n)
 		text("mov eax, [esp]")
-		for i=1,n-1 do text("mul dword [esp"..offsetString(i).."]") end
-	end,
-	["div"] = function(n)
+		text("neg eax")
+	end},
+	['mul'] = {required = 2, moreAllowed = true, f=function(n)
+		text("mov eax, [esp]")
+		for i=1,n-1 do text("mul eax, [esp"..offsetString(i).."]") end
+	end},
+	['div'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
 		for i=1,n-1 do
 			text("mov edx, 0")
 			text("div dword [esp"..offsetString(i).."]")
 		end
-	end,
-	["idiv"] = function(n)
+	end},
+	['idiv'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
 		for i=1,n-1 do
 			text("cqo")
 			text("idiv dword [esp"..offsetString(i).."]")
 		end
-	end,
-	["mod"] = function(n)
+	end},
+	['mod'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov eax, [esp]")
-		text("mov edx, 0")
-		text("div dword [esp"..offsetString(1).."]")
+		text("xor edx, edx")
+		text("div dword [esp+4]")
 		text("mov eax, edx")
-	end,
-	["imod"] = function(n)
+	end},
+	['imod'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov eax, [esp]")
 		text("cqo")
-		text("idiv dword [esp"..offsetString(1).."]")
+		text("idiv dword [esp+4]")
 		text("mov eax, edx")
-	end,
-	["eq"] = function(n)
+	end},
+
+	['eq'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor eax, eax")
 		text("mov ebx, [esp]")
-		text("cmp ebx, [esp"..offsetString(1).."]")
+		text("cmp ebx, [esp+4]")
 		text("setz al")
-	end,
-	["ne"] = function(n)
+	end},
+	['ne'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov eax, [esp]")
-		text("xor eax, [esp"..offsetString(1).."]")
-	end,
-	["lt"] = function(n)
+		text("xor eax, [esp+4]")
+	end},
+	['lt'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor eax, eax")
 		text("mov ebx, [esp]")
 		text("inc ebx")
-		text("cmp ebx, [esp"..offsetString(1).."]")
+		text("cmp ebx, [esp+4]")
 		text("setle al")
-	end,
-	["lte"] = function(n)
+	end},
+	['lte'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor eax, eax")
 		text("mov ebx, [esp]")
-		text("cmp ebx, [esp"..offsetString(1).."]")
+		text("cmp ebx, [esp+4]")
 		text("setle al")
-	end,
-	["gt"] = function(n)
+	end},
+	['gt'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor eax, eax")
-		text("mov ebx, [esp"..offsetString(1).."]")
+		text("mov ebx, [esp+4]")
 		text("inc ebx")
 		text("cmp ebx, [esp]")
 		text("setle al")
-	end,
-	["gte"] = function(n)
+	end},
+	['gte'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor eax, eax")
-		text("mov ebx, [esp"..offsetString(1).."]")
+		text("mov ebx, [esp+4]")
 		text("cmp ebx, [esp]")
 		text("setle al")
-	end,
-	["not"] = function(n)
+	end},
+	['not'] = {required = 1, moreAllowed = false, f=function(n)
 		text("xor eax, eax")
 		text("cmp [esp], 0")
 		text("setz al")
 		text("xor eax, 1")
-	end,
-	["and"] = function(n)
+	end},
+	['and'] = {required = 2, moreAllowed = true, f=function(n)
 		text("cmp dword [esp], 0")
 		text("mov eax, 0")
 		text("setz al")
@@ -162,43 +167,83 @@ local builtin_evals = {
 			end
 		end
 		text("and eax, [esp"..offsetString(n-1).."]")
-	end,
-	["or"] = function(n)
+	end},
+	['or'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
-		for i=1,n-1 do text("of eax, [esp"..offsetString(i).."]") end
-	end,
-	["band"] = function(n)
-		text("mov eax, [esp]")
-		for i=1,n-1 do text("and eax, [esp"..offsetString(i).."]") end
-	end,
-	["bnot"] = function(n)
+		for i=1,n-1 do text("or eax, [esp"..offsetString(i).."]") end
+	end},
+
+	['bnot'] = {required = 1, moreAllowed = false, f=function(n)
 		text("mov eax, [esp]")
 		text("not eax")
-	end,
-	["lsr"] = function(n)
+	end},
+	['band'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
-		text("mov cl, [esp"..offsetString(1).."]")
-		text("shr eax, cl")
-	end,
-	["lsl"] = function(n)
+		for i=1,n-1 do text("and eax, [esp"..offsetString(i).."]") end
+	end},
+	['lsl'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov eax, [esp]")
 		text("mov cl, [esp"..offsetString(1).."]")
 		text("shl eax, cl")
-	end,
-	["asr"] = function(n)
+	end},
+	['lsr'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov eax, [esp]")
+		text("mov cl, [esp"..offsetString(1).."]")
+		text("shr eax, cl")
+	end},
+	['asr'] = {required = 2, moreAllowed = false,f=function(n)
 		text("mov eax, [esp]")
 		text("mov cl, [esp"..offsetString(1).."]")
 		text("sar eax, cl")
-	end,
-	["syscall"] = function(n)
+	end},
+
+	['syscall'] = {required = 1, moreAllowed = true, f=function(n)
 		text("mov eax, [esp]")
 		local registers = {"ebx", "ecx", "edx", "esi", "edi"}
 		for i=1,n-1 do
 			text("mov "..registers[i]..", [esp"..offsetString(i).."]")
 		end
 		text("int 80h")
-	end
+	end},
+
+	['load8'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov ebx, [esp]")
+		text("xor eax, eax")
+		text("mov al, [ebx]")
+	end},
+	['load16'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov ebx, [esp]")
+		text("xor eax, eax")
+		text("mov ax, [ebx]")
+	end},
+	['load32'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov rbx, [esp]")
+		text("mov eax, [ebx]")
+	end},
+
+	['store8'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov ebx, [esp]")
+		text("mov al, [esp+8]")
+		text("mov [ebx], al")
+	end},
+	['store16'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov ebx, [esp]")
+		text("mov ax, [esp+8]")
+		text("mov [ebx], ax")
+	end},
+	['store32'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov ebx, [esp]")
+		text("mov eax, [esp+8]")
+		text("mov [ebx], eax")
+	end},
 }
+
+builtins["asl"] = builtins["lsl"]
+builtins["bor"] = builtins["or"]
+builtins['loadWord'] = builtins['load32']
+builtins['storeWord'] = builtins['store32']
+builtins['loadByte'] = builtins['load8']
+builtins['storeByte'] = builtins['store8']
 
 local function as_variableTarget(variable)
 	return "[ebp"..offsetString(variable.allocated and -variable.id or variable.id, 1).."]"
@@ -321,8 +366,8 @@ local function as_functionCall_fini(func)
 		text("sub esp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end
 	flip_end()
-	if builtin_evals[func] then
-		builtin_evals[func](functionArgumentPasses[#functionArgumentPasses])
+	if builtins[func] then
+		builtins[func].f(functionArgumentPasses[#functionArgumentPasses])
 	else
 		text("call "..func)
 	end
@@ -352,7 +397,11 @@ local function as_allocate(variable)
 end
 
 return {
+	WORD_SIZE = 4,
+	
 	finish = finish,
+
+	builtin = function(name) return builtins[name] end,
 	
 	functionDefinition = as_functionDefinition,
 	public = as_public,

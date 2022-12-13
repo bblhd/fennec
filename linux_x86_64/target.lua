@@ -67,88 +67,93 @@ local function offsetString(amount, positiveBias, negativeBias)
 	end
 end
 
-local builtin_evals = {
-	["add"] = function(n)
+builtins = {
+	['add'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		for i=1,n-1 do text("add rax, [rsp"..offsetString(i).."]") end
-	end,
-	["sub"] = function(n)
+	end},
+	['sub'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		for i=1,n-1 do text("sub rax, [rsp"..offsetString(i).."]") end
-	end,
-	["mul"] = function(n)
+	end},
+	['neg'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov rax, [rsp]")
+		text("neg rax")
+	end},
+	['mul'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		for i=1,n-1 do text("mul qword [rsp"..offsetString(i).."]") end
-	end,
-	["div"] = function(n)
+	end},
+	['div'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		for i=1,n-1 do
 			text("mov rdx, 0")
 			text("div qword [rsp"..offsetString(i).."]")
 		end
-	end,
-	["idiv"] = function(n)
+	end},
+	['idiv'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		for i=1,n-1 do
 			text("cqo")
 			text("idiv qword [rsp"..offsetString(i).."]")
 		end
-	end,
-	["mod"] = function(n)
+	end},
+	['mod'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov rax, [rsp]")
 		text("mov rdx, 0")
 		text("div qword [rsp+8]")
 		text("mov rax, rdx")
-	end,
-	["imod"] = function(n)
+	end},
+	['imod'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov rax, [rsp]")
 		text("cqo")
 		text("idiv qword [rsp+8]")
 		text("mov rax, rdx")
-	end,
-	["eq"] = function(n)
+	end},
+
+	['eq'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor rax, rax")
 		text("mov rbx, [rsp]")
 		text("cmp rbx, [rsp+8]")
 		text("setz al")
-	end,
-	["ne"] = function(n)
+	end},
+	['ne'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov rax, [rsp]")
 		text("xor rax, [rsp+8]")
-	end,
-	["lt"] = function(n)
+	end},
+	['lt'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor rax, rax")
 		text("mov rbx, [rsp]")
 		text("inc rbx")
 		text("cmp rbx, [rsp+8]")
 		text("setle al")
-	end,
-	["lte"] = function(n)
+	end},
+	['lte'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor rax, rax")
 		text("mov rbx, [rsp]")
 		text("cmp rbx, [rsp+8]")
 		text("setle al")
-	end,
-	["gt"] = function(n)
+	end},
+	['gt'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor rax, rax")
 		text("mov rbx, [rsp+8]")
 		text("inc rbx")
 		text("cmp rbx, [rsp]")
 		text("setle al")
-	end,
-	["gte"] = function(n)
+	end},
+	['gte'] = {required = 2, moreAllowed = false, f=function(n)
 		text("xor rax, rax")
 		text("mov rbx, [rsp+8]")
 		text("cmp rbx, [rsp]")
 		text("setle al")
-	end,
-	["not"] = function(n)
+	end},
+	['not'] = {required = 1, moreAllowed = false, f=function(n)
 		text("xor rax, rax")
 		text("cmp [rsp], 0")
 		text("setz al")
 		text("xor rax, 1")
-	end,
-	["and"] = function(n)
+	end},
+	['and'] = {required = 2, moreAllowed = true, f=function(n)
 		text("cmp qword [rsp], 0")
 		text("mov rax, 0")
 		text("setz al")
@@ -162,43 +167,93 @@ local builtin_evals = {
 			end
 		end
 		text("and rax, [rsp"..offsetString(n-1).."]")
-	end,
-	["or"] = function(n)
+	end},
+	['or'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		for i=1,n-1 do text("of rax, [rsp"..offsetString(i).."]") end
-	end,
-	["band"] = function(n)
-		text("mov rax, [rsp]")
-		for i=1,n-1 do text("and rax, [rsp"..offsetString(i).."]") end
-	end,
-	["bnot"] = function(n)
+	end},
+
+	['bnot'] = {required = 1, moreAllowed = false, f=function(n)
 		text("mov rax, [rsp]")
 		text("not rax")
-	end,
-	["lsr"] = function(n)
+	end},
+	['band'] = {required = 2, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
-		text("mov cl, [rsp+8]")
-		text("shr rax, cl")
-	end,
-	["lsl"] = function(n)
+		for i=1,n-1 do text("and rax, [rsp"..offsetString(i).."]") end
+	end},
+	['lsl'] = {required = 2, moreAllowed = false, f=function(n)
 		text("mov rax, [rsp]")
 		text("mov cl, [rsp+8]")
 		text("shl rax, cl")
-	end,
-	["asr"] = function(n)
+	end},
+	['lsr'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov rax, [rsp]")
+		text("mov cl, [rsp+8]")
+		text("shr rax, cl")
+	end},
+	['asr'] = {required = 2, moreAllowed = false,f=function(n)
 		text("mov rax, [rsp]")
 		text("mov cl, [rsp+8]")
 		text("sar rax, cl")
-	end,
-	["syscall"] = function(n)
+	end},
+
+	['syscall'] = {required = 1, moreAllowed = true, f=function(n)
 		text("mov rax, [rsp]")
 		local registers = {"rdi", "rsi", "rdx", "r10", "r8", "r9"}
 		for i=1,n-1 do
 			text("mov "..registers[i]..", [rsp"..offsetString(i).."]")
 		end
 		text("syscall")
-	end
+	end},
+
+	['load8'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("xor rax, rax")
+		text("mov al, [rbx]")
+	end},
+	['load16'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("xor rax, rax")
+		text("mov ax, [rbx]")
+	end},
+	['load32'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("xor rax, rax")
+		text("mov eax, [rbx]")
+	end},
+	['load64'] = {required = 1, moreAllowed = false, f=function(n)
+		text("mov rax, [rsp]")
+		text("mov rax, [rax]")
+	end},
+
+	['store8'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("mov rax, [rsp+8]")
+		text("mov [rbx], al")
+	end},
+	['store16'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("mov rax, [rsp+8]")
+		text("mov [rbx], ax")
+	end},
+	['store32'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("mov rax, [rsp+8]")
+		text("mov [rbx], eax")
+	end},
+	['store64'] = {required = 2, moreAllowed = false, f=function(n)
+		text("mov rbx, [rsp]")
+		text("mov rax, [rsp+8]")
+		text("mov [rbx], rax")
+	end},
 }
+
+builtins["asl"] = builtins["lsl"]
+builtins["bor"] = builtins["or"]
+builtins['loadWord'] = builtins['load64']
+builtins['storeWord'] = builtins['store64']
+builtins['loadByte'] = builtins['load8']
+builtins['storeByte'] = builtins['store8']
 
 local function as_variableTarget(variable)
 	return "[rbp"..offsetString(variable.allocated and -variable.id or variable.id, 1).."]"
@@ -321,8 +376,8 @@ local function as_functionCall_fini(func)
 		text("sub rsp, "..functionArgumentPasses[#functionArgumentPasses]*8)
 	end
 	flip_end()
-	if builtin_evals[func] then
-		builtin_evals[func](functionArgumentPasses[#functionArgumentPasses])
+	if builtins[func] then
+		builtins[func].f(functionArgumentPasses[#functionArgumentPasses])
 	else
 		text("call "..func)
 	end
@@ -353,7 +408,11 @@ local function as_allocate(variable)
 end
 
 return {
+	WORD_SIZE = 8,
+	
 	finish = finish,
+
+	builtin = function(name) return builtins[name] end,
 	
 	functionDefinition = as_functionDefinition,
 	public = as_public,

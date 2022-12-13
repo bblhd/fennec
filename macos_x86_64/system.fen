@@ -1,15 +1,6 @@
-link "stdlib"
-
-extern (storeWord ptr value)
-extern (loadWord ptr)
-extern (storeByte ptr value)
-extern (loadByte ptr)
-
 constant O_RDONLY = 0
 constant O_WRONLY = 1
 constant O_RDWR = 2
-
-constant WORD_SIZE = 8
 
 constant SYS_EXIT = 0x2000001
 constant SYS_READ = 0x2000003
