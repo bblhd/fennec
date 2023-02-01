@@ -9,6 +9,8 @@ Goals for this project:
 
 ## Usage
 
+This usage guide only applies to the most recent release version (v0), not the development version.
+
 While in the project folder, compile and link a fennec program for a given platform (operating system + ISA) using:
 
 ```
