@@ -1,4 +1,4 @@
+public constant x = 4
 {
-	unless x let x = 0xff
-	if x let x = 0
+	(f x y)
 }
