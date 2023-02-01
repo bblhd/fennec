@@ -1,0 +1,29 @@
+constant SYS_EXIT = 1
+
+
+constant SYS_READ = 3
+constant SYS_WRITE = 4
+
+
+constant SYS_OPEN = 5
+constant SYS_CLOSE = 6
+
+constant O_RDONLY = 0
+constant O_WRONLY = 1
+constant O_RDWR = 2
+
+
+constant SYS_MMAP = 192
+constant SYS_MUNMAP = 91
+
+constant PROT_NONE = 0
+constant PROT_READ = 1
+constant PROT_WRITE = 2
+constant PROT_EXEC = 4
+
+constant MAP_SHARED = 1
+constant MAP_PRIVATE = 2
+constant MAP_FILE = 0
+constant MAP_ANONYMOUS = 0x1000
+
+constant MAP_FAILED = -1

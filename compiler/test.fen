@@ -1,4 +1,0 @@
-{
-	unless x let x = 0xff
-	if x let x = 0
-}

@@ -1,0 +1,82 @@
+include "system"
+include "nonstdio"
+
+intern (printHexdump path)
+
+public (main argc argv...; name answer) {
+	(printf "Test int: %u\nTest string: \"%s\"\nTest char: '%c'\n"
+		13
+		"Hello World!"
+		0x43
+	)
+
+	(printf "Please enter your name: ")
+	allocate name[32]
+	(scan name 32)
+	(printf "Hello and welcome to fennec, %s!\n" name)
+
+	if (gt argc 1) {
+		(printf "I was given %u arguments.\n" (sub argc 1))
+		(printf "The first argument I was given was '%s'.\n" (loadWord (add argv WORD_SIZE)))
+	} else {
+		(printf "Nothing was passed to me as an argument. :(\n")
+	}
+
+	(printf "Do you want to see a hexdump of this executable? (yes/no) ")
+	allocate answer[WORD_SIZE]
+	(scan answer WORD_SIZE)
+
+	if (ne 'y' (loadByte answer)) {
+		(printf "Not printing hexdump.\n")
+	} else {
+		(printf "Printing hexdump for file %s!\n" (loadWord argv))
+		(printHexdump (loadWord argv))
+	}
+
+	return 0
+}
+
+intern (printHexNBytes buffer n)
+intern (printCharNBytes buffer n)
+
+private (printHexdump path; fd loaded buffer) {
+	fd := (syscall SYS_OPEN path O_RDONLY)
+
+	allocate buffer[16]
+	while {loaded := (syscall SYS_READ fd buffer 16)} {
+		while (lt loaded 16) {
+			(storeByte (add buffer loaded) 0)
+			loaded := (add loaded 1)
+		}
+		(printHexNBytes buffer 16)
+		(print "   ")
+		(printCharNBytes buffer 16)
+		(print "\n")
+	}
+
+	(syscall SYS_CLOSE fd)
+}
+
+private (printHexNBytes buffer n) {
+	while (gt n 0) {
+		(syscall SYS_WRITE 1 (add (lsr (loadByte buffer) 4) "0123456789abcdef") 1)
+		(syscall SYS_WRITE 1 (add (band (loadByte buffer) 0xf) "0123456789abcdef") 1)
+		(print " ")
+
+		buffer := (add buffer 1)
+		n := (sub n 1)
+	}
+}
+
+private (printCharNBytes buffer n) {
+	while (gt n 0) {
+		if (and (gte (loadByte buffer) 32) (lt (loadByte buffer) 127)) {
+			(syscall SYS_WRITE 1 buffer 1)
+		} else {
+			(print " ")
+		}
+		
+		buffer := (add buffer 1)
+		n := (sub n 1)
+	}
+}
