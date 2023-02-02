@@ -96,17 +96,14 @@ int declaration_root() {
 	return 1;
 }
 
-//int declaration_function() {
-	//return varg_or(statement_if, expression_root);
-//}
-
 int code_block();
 int statement_if();
 int statement_while();
 int statement_let();
+int statement_express();
 
 int statement_root() {
-	return any(code_block, statement_if, statement_while, statement_let, expression_root);
+	return any(code_block, statement_if, statement_while, statement_let, statement_express);
 }
 
 int code_block() {
@@ -163,6 +160,14 @@ int statement_let() {
 	return 0;
 }
 
+int statement_express() {
+	if (tokens_keyword("express")) {
+		tokens_assert(expression_root(), "malformed or missing expression");
+		return 1;
+	}
+	return 0;
+}
+
 int expression_string();
 int expression_name();
 int expression_number();
@@ -174,15 +179,39 @@ int expression_root() {
 
 int expression_call() {
 	if (tokens_symbol("(")) {
-		char *name = stringCache_give(tokens_name());
-		(void) name;
-		arranger_reserve();
-		while (!tokens_symbol(")")) {
-			tokens_assert(!tokens_eof(), "missing closing bracket in function call");
-			tokens_assert(expression_root(), "malformed or missing expression in function call");
-			arranger_pass();
+		if (tokens_keyword("const")) {
+			tokens_assert(!tokens_eof(), "missing closing bracket in const builtin");
+			arranger_number(consteval_expression());
+			tokens_assert(tokens_symbol(")"), "more than 1 expression given for const builtin");
+		} else if (tokens_keyword("add")) {
+			tokens_assert(!tokens_eof(), "missing closing bracket in add builtin");
+			tokens_assert(expression_root(), "malformed or missing expression in add builtin");
+			while (!tokens_symbol(")")) {
+				arranger_save();
+				tokens_assert(!tokens_eof(), "missing closing bracket in add builtin");
+				tokens_assert(expression_root(), "malformed or missing expression in add builtin");
+				arranger_add();
+			}
+		} else if (tokens_keyword("sub")) {
+			tokens_assert(!tokens_eof(), "missing closing bracket in sub builtin");
+			tokens_assert(expression_root(), "malformed or missing expression in sub builtin");
+			while (!tokens_symbol(")")) {
+				arranger_save();
+				tokens_assert(!tokens_eof(), "missing closing bracket in sub builtin");
+				tokens_assert(expression_root(), "malformed or missing expression in sub builtin");
+				arranger_sub();
+			}
+		} else {
+			char *name = stringCache_give(tokens_name());
+			(void) name;
+			arranger_reserve();
+			while (!tokens_symbol(")")) {
+				tokens_assert(!tokens_eof(), "missing closing bracket in function call");
+				tokens_assert(expression_root(), "malformed or missing expression in function call");
+				arranger_pass();
+			}
+			arranger_call(name);
 		}
-		arranger_call(name);
 		return 1;
 	}
 	return 0;

@@ -1,4 +1,6 @@
 public constant x = 4
 {
-	(f x y)
+	let y = (add 3 x)
+	while y let y = (sub y 1)
+	if y express 3 else express 0
 }

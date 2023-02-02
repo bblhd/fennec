@@ -13,9 +13,9 @@ struct {
 	int depth;
 } calls;
 
-#define MAX_stack_DEPTH 16
+#define MAX_JUMP_DEPTH 16
 struct {
-	int stack[MAX_CALL_DEPTH];
+	int stack[MAX_JUMP_DEPTH];
 	int depth;
 	int most;
 } jumps;
@@ -25,34 +25,50 @@ void (*arranger_assert)(int, char *);
 void arranger_setup(void (*assertFunction)(int, char *)) {
 	arranger_assert = assertFunction;
 	calls.depth = 0;
+	jumps.depth = 0;
+	jumps.most = 0;
+}
+
+int jumps_push() {
+	arranger_assert(jumps.depth < MAX_JUMP_DEPTH, "maximum control flow depth exceeded (ARRANGER)");
+	return (jumps.stack[jumps.depth++] = jumps.most++);
+}
+
+int jumps_pull() {
+	arranger_assert(jumps.depth > 0, "trailing control flow ending clause (ARRANGER)");
+	return jumps.stack[--jumps.depth];
 }
 
 void arranger_if() {
-	printf("if\n");
+	printf("if zero, goto %i\n", jumps_push());
 }
 
 void arranger_unless() {
-	printf("unless\n");
+	printf("if non-zero, goto %i\n", jumps_push());
 }
 
 void arranger_else() {
-	printf("else\n");
+	int j = jumps_pull();
+	printf("goto %i\n", jumps_push());
+	printf("label %i\n", j);
 }
 
 void arranger_end() {
-	printf("end");
+	printf("label %i\n", jumps_pull());
 }
 
 void arranger_while() {
-	printf("while\n");
+	printf("label %i\n", jumps_push());
 }
 
 void arranger_do() {
-	printf("do\n");
+	printf("if zero, goto %i\n", jumps_push());
 }
 
 void arranger_done() {
-	printf("done\n");
+	int j = jumps_pull();
+	printf("goto %i\n", jumps_pull());
+	printf("label %i\n", j);
 }
 
 void arranger_variable(int id) {
@@ -75,6 +91,7 @@ void arranger_reserve() {
 	arranger_assert(calls.depth < MAX_CALL_DEPTH, "function call max depth exceeded (ARRANGER)");
 	printf("reserve\n");
 	calls.depth++;
+	calls.size[calls.depth-1] = 0;
 }
 
 void arranger_pass() {
@@ -87,6 +104,22 @@ void arranger_call(char *name) {
 	arranger_assert(calls.depth > 0, "function call not properly began (ARRANGER)");
 	calls.depth--;
 	printf("call %s\n", name);
+}
+
+void arranger_save() {
+	printf("save\n");
+}
+
+void arranger_add() {
+	printf("save\n");
+}
+
+void arranger_sub() {
+	printf("sub\n");
+}
+
+void arranger_neg() {
+	printf("neg\n");
 }
 
 
