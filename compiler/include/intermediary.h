@@ -26,7 +26,6 @@ enum IntermediaryAction {
 	
 	IACT_VARIABLE,
 	IACT_LET,
-	IACT_ALLOCATE,
 	IACT_PASS,
 	
 	//no arguments
@@ -40,7 +39,7 @@ enum IntermediaryAction {
 	IACT_DO,
 	IACT_DONE,
 	
-	IACT_CALL, //a = a(...)
+	IACT_CALL, //a = b(...)
 	IACT_SAVE, //b = a
 	
 	IACT_ADD, //a = b + a
