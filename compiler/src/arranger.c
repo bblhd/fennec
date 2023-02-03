@@ -111,7 +111,7 @@ void arranger_save() {
 }
 
 void arranger_add() {
-	printf("save\n");
+	printf("add\n");
 }
 
 void arranger_sub() {

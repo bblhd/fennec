@@ -49,6 +49,53 @@ void stringCache_free() {
 	}
 }
 
+void basicError(char *msg) {
+	fprintf(stderr, "Fennec compiler error: %s\n", msg);
+	exit(EXIT_FAILURE);
+}
+
+void basicAssert(int cond, char *msg) {
+	if (!cond) basicError(msg);
+}
+
+char *infile;
+char *outfile;
+
+bool cmdline(char **args, int n) {
+	char *command = args[0];
+	args++;
+	n--;
+	
+	if (strcmp(args[0], "-v") == 0) {
+		basicAssert(n==1, "-v option, if present, must be only option");
+		printf("fennec compiler v1 (dev)\n");
+		return false;
+	}
+	if (strcmp(args[0], "-h") == 0) {
+		basicAssert(n==1, "-h option, if present, must be only option");
+		printf("fennec compiler v1 (dev)\n");
+		printf("\nUsage:\n");
+		printf("\t%s -v\n", command);
+		printf("\t%s -h\n", command);
+		printf("\t%s [-i path | -l module=file | -A assembly | -O object | -c]... infile [outfile]\n", command);
+		printf("\nOptions:\n");
+		printf("\t-v               Prints the current version information\n");
+		printf("\t-h               Prints this help message\n");
+		printf("\t-i path          Adds a path to search for modules\n");
+		printf("\t-l module=file   Adds a direct module alias\n");
+		printf("\t-A assembly      Adds an assembly file to be included when compiling\n");
+		printf("\t-O object        Adds a precompiled file to be included when linking\n");
+		printf("\t-c               Skips the linking stage and the compiling of included files\n");
+		return false;
+	}
+	while (n > 0) {
+		basicAssert(strcmp(args[0], "-v")!=0, "-v option, if present, must be only option");
+		basicAssert(strcmp(args[0], "-h")!=0, "-h option, if present, must be only option");
+		n--;
+	}
+	return true;
+}
+
 int statement_root();
 int declaration_root();
 
@@ -56,10 +103,10 @@ int main(int argc, char **argv) {
 	(void) argc;
 	(void) argv;
 	
-	if (argc > 1) {
+	if (cmdline(argv, argc)) {
 		arranger_setup(tokens_assert);
 		
-		tokens_open(argv[1]);
+		tokens_open(infile);
 		declaration_root();
 		tokens_close();
 		
