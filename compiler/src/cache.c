@@ -7,14 +7,8 @@
 
 #include <dirent.h>
 
-void basicError(char *msg) {
-	fprintf(stderr, "Fennec compiler error: %s\n", msg);
-	exit(EXIT_FAILURE);
-}
-
-void basicAssert(int cond, char *msg) {
-	if (!cond) basicError(msg);
-}
+void basicError(char *msg);
+void basicAssert(int cond, char *msg);
 
 #define INCLUDE_PATHS_MAX 32
 int includePathsTop = 0;
@@ -30,7 +24,7 @@ char *searchIncludePaths(char *name) {
 		DIR *dir = opendir(includePaths[i]);
 		struct dirent *ent;
 		if (dir == NULL) continue;
-		while (ent = readdir(ent)) {
+		while ((ent = readdir(dir))) {
 			if (strcmp(name, ent->d_name)==0) {
 				return includePaths[i];
 			}
