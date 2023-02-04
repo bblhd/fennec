@@ -5,115 +5,16 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
-#include <common.h>
+#include <cache.h>
 #include <tokeniser.h>
 #include <arranger.h>
 #include <consteval.h>
 
-struct StringCache {
-	struct StringCache *next;
-	char string[];
-} *stringCache = NULL;
-
-char *stringCache_store(char *s) {
-	struct StringCache **where = &stringCache;
-	
-	while (*where != NULL && strcmp(s, (*where)->string) > 0) {
-		where = &((*where)->next);
-	}
-	if (*where != NULL && strcmp(s, (*where)->string) == 0) {
-		return (*where)->string;
-	}
-	
-	struct StringCache *new = malloc(sizeof(struct StringCache) + strlen(s) + 1);
-	if (new == NULL) {return NULL;}
-	
-	new->next = *where;
-	strcpy(new->string, s);
-	*where = new;
-	return new->string;
-}
-
-char *stringCache_give(char *old) {
-	char *new = stringCache_store(old);
-	free(old);
-	return new;
-}
-
-void stringCache_free() {
-	struct StringCache *sc = stringCache, *nsc = NULL;
-	while (sc != NULL) {
-		nsc = sc->next;
-		free(sc);
-		sc = nsc;
-	}
-}
-
-void basicError(char *msg) {
-	fprintf(stderr, "Fennec compiler error: %s\n", msg);
-	exit(EXIT_FAILURE);
-}
-
-void basicAssert(int cond, char *msg) {
-	if (!cond) basicError(msg);
-}
-
-char *infile;
-char *outfile;
-
-bool cmdline(char **args, int n) {
-	char *command = args[0];
-	args++;
-	n--;
-	
-	if (strcmp(args[0], "-v") == 0) {
-		basicAssert(n==1, "-v option, if present, must be only option");
-		printf("fennec compiler v1 (dev)\n");
-		return false;
-	}
-	if (strcmp(args[0], "-h") == 0) {
-		basicAssert(n==1, "-h option, if present, must be only option");
-		printf("fennec compiler v1 (dev)\n");
-		printf("\nUsage:\n");
-		printf("\t%s -v\n", command);
-		printf("\t%s -h\n", command);
-		printf("\t%s [-i path | -l module=file | -A assembly | -O object | -c]... infile [outfile]\n", command);
-		printf("\nOptions:\n");
-		printf("\t-v               Prints the current version information\n");
-		printf("\t-h               Prints this help message\n");
-		printf("\t-i path          Adds a path to search for modules\n");
-		printf("\t-l module=file   Adds a direct module alias\n");
-		printf("\t-A assembly      Adds an assembly file to be included when compiling\n");
-		printf("\t-O object        Adds a precompiled file to be included when linking\n");
-		printf("\t-c               Skips the linking stage and the compiling of included files\n");
-		return false;
-	}
-	while (n > 0) {
-		basicAssert(strcmp(args[0], "-v")!=0, "-v option, if present, must be only option");
-		basicAssert(strcmp(args[0], "-h")!=0, "-h option, if present, must be only option");
-		n--;
-	}
-	return true;
-}
+#define any(f...) varg_or(f, NULL)
+int varg_or(int (*f)(void), ...);
 
 int statement_root();
 int declaration_root();
-
-int main(int argc, char **argv) {
-	(void) argc;
-	(void) argv;
-	
-	if (cmdline(argv, argc)) {
-		arranger_setup(tokens_assert);
-		
-		tokens_open(infile);
-		declaration_root();
-		tokens_close();
-		
-		stringCache_free();
-	}
-	return 0;
-}
 
 int varg_or(int (*f)(void), ...) {
 	int r = 0;
