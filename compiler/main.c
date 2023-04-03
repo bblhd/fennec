@@ -5,10 +5,10 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
-#include <cache.h>
-#include <tokeniser.h>
-#include <arranger.h>
-#include <consteval.h>
+#include "cache.h"
+#include "tokeniser.h"
+
+void parser_top();
 
 char *infile = NULL;
 char *outfile = NULL;
@@ -20,11 +20,15 @@ void cmdline(char **args, int n);
 int main(int argc, char **argv) {
 	cmdline(argv, argc);
 	
-	if (compileGoahead) {
+	if (compileGoahead != DONT_COMPILE) {
 		if (outfile == NULL) outfile = "a.out";
 		printf("%s to %s from %s\n", compileGoahead==ONLY_COMPILE ? "compiling" : "building", outfile, infile);
 		
-		//stringCache_free();
+		tokens_open(infile);
+		parser_top();
+		tokens_close();
+		
+		cache_free();
 	}
 	return 0;
 }
@@ -84,7 +88,14 @@ void cmdline(char **args, int n) {
 						addIncludePath(args[1]);
 						args+=2; n-=2;
 					} else if (strcmp(args[0], "-l")==0 && n > 1) {
-						printf("library %s\n", args[1]);
+						char *eqpoint = strchr(args[1], '=');
+						basicAssert(eqpoint!=NULL, "alias lacks equals sign");
+						
+						*eqpoint = '\0';
+						cache_t *c = cache_get(args[1]);
+						c->is.include = true;
+						c->include = eqpoint+1;
+						
 						args+=2; n-=2;
 					} else if (strcmp(args[0], "-o")==0 && n > 1) {
 						printf("object %s\n", args[1]);

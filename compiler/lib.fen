@@ -1,0 +1,3 @@
+public constant A = 100
+constant B = 200
+private module "testlib"

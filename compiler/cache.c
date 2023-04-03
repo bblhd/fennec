@@ -7,6 +7,11 @@
 
 #include <dirent.h>
 
+#include "program.h"
+#include "cache.h"
+
+typedef long const_t;
+
 void basicError(char *msg);
 void basicAssert(int cond, char *msg);
 
@@ -20,6 +25,7 @@ void addIncludePath(char *path) {
 }
 
 char *searchIncludePaths(char *name) {
+	
 	for (int i = 0; i < includePathsTop; i++) {
 		DIR *dir = opendir(includePaths[i]);
 		struct dirent *ent;
@@ -34,41 +40,47 @@ char *searchIncludePaths(char *name) {
 	return NULL;
 }
 
-struct StringCache {
-	struct StringCache *next;
-	char string[];
-} *stringCache = NULL;
+cache_t *cache = NULL;
 
-char *stringCache_store(char *s) {
-	struct StringCache **where = &stringCache;
+cache_t *cache_get(char *s) {
+	if (s==NULL) return NULL;
 	
-	while (*where != NULL && strcmp(s, (*where)->string) > 0) {
+	cache_t **where = &cache;
+	
+	while (*where != NULL && strcmp(s, (*where)->name) > 0) {
 		where = &((*where)->next);
 	}
-	if (*where != NULL && strcmp(s, (*where)->string) == 0) {
-		return (*where)->string;
+	if (*where != NULL && strcmp(s, (*where)->name) == 0) {
+		return *where;
 	}
 	
-	struct StringCache *new = malloc(sizeof(struct StringCache) + strlen(s) + 1);
+	cache_t *new = malloc(sizeof(cache_t) + strlen(s) + 1);
 	if (new == NULL) {return NULL;}
 	
+	new->is.include = false;
+	new->is.constant = false;
+	new->is.function = false;
+	new->is.array = false;
+	new->is.variable = false;
+	new->is.string = false;
+	
 	new->next = *where;
-	strcpy(new->string, s);
+	strcpy(new->name, s);
 	*where = new;
-	return new->string;
-}
-
-char *stringCache_give(char *old) {
-	char *new = stringCache_store(old);
-	free(old);
 	return new;
 }
 
-void stringCache_free() {
-	struct StringCache *sc = stringCache, *nsc = NULL;
-	while (sc != NULL) {
-		nsc = sc->next;
-		free(sc);
-		sc = nsc;
+cache_t *cache_give(char *s) {
+	cache_t *c = cache_get(s);
+	free(s);
+	return c;
+}
+
+void cache_free() {
+	struct Cache *c = cache, *nc = NULL;
+	while (c != NULL) {
+		nc = c->next;
+		free(c);
+		c = nc;
 	}
 }

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-gcc -Wall -Wextra -Iinclude -o fennec ./src/*
+gcc -Wall -Wextra -Werror -o fennec *.c

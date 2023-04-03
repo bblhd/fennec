@@ -1,6 +1,3 @@
-public constant x = 4
-{
-	let y = (add 3 x)
-	while y let y = (sub y 1)
-	if y express 3 else express 0
-}
+public constant SIZE = 32
+public module "testlib"
+private constant C = 39
